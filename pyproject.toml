@@ -1,0 +1,105 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "yomil"
+version = "0.1.0"
+description = "A small Windows tray app for recurring bill reminders and manual reconciliation."
+readme = "README.md"
+requires-python = ">=3.12"
+# TODO: choose a license, add a LICENSE file, then add `license = "..."` here.
+dependencies = [
+    "python-dateutil>=2.9",
+    "platformdirs>=4.2",
+]
+
+[project.optional-dependencies]
+# The GUI shell is an extra so the headless core can be tested and type-checked
+# on machines (and CI jobs) that don't have wxPython installed.
+gui = [
+    "wxPython>=4.2",
+]
+
+[project.gui-scripts]
+# On Windows, installers generate a console-less launcher .exe for this entry.
+yomil = "yomil.app.main:main"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.10",
+    "pre-commit>=3.7",
+    "pytest>=8",
+    "pytest-cov>=5",
+    "hypothesis>=6.100",
+    "ruff>=0.5",
+    "types-python-dateutil",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/yomil"]
+
+# --------------------------------------------------------------------- ruff
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # isort
+    "B",        # bugbear
+    "UP",       # pyupgrade
+    "SIM",      # simplify
+    "C4",       # comprehensions
+    "RUF",      # ruff-specific
+    "PT",       # pytest style
+    "N",        # pep8-naming
+    "DTZ",      # naive datetime pitfalls
+    "T20",      # no stray print()
+    "PTH",      # pathlib over os.path
+    "TC",       # typing-only imports
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+# --------------------------------------------------------------------- mypy
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "src"
+packages = ["yomil"]
+warn_unreachable = true
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
+
+[[tool.mypy.overrides]]
+# wxPython may or may not be installed (or typed); treat it as dynamic.
+module = ["wx", "wx.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# Subclassing wx classes is unavoidable in the shell.
+module = ["yomil.app.*"]
+disallow_subclassing_any = false
+
+# ------------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = ["-ra", "--strict-markers", "--strict-config"]
+
+# ----------------------------------------------------------------- coverage
+[tool.coverage.run]
+source = ["yomil"]
+branch = true
+omit = ["src/yomil/app/*"]  # GUI shell is exercised manually
+
+[tool.coverage.report]
+show_missing = true
+exclude_also = ["if TYPE_CHECKING:"]
