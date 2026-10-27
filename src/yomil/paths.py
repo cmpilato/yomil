@@ -4,11 +4,11 @@ from pathlib import Path
 
 from platformdirs import user_data_path, user_log_path
 
-APP_NAME = "YOMIL"
+APP_NAME = "yomil"
 
 
 def data_dir() -> Path:
-    """Directory holding the database and backups (``%LOCALAPPDATA%\\YOMIL`` on Windows)."""
+    """Directory holding the database and backups (``%LOCALAPPDATA%\\yomil`` on Windows)."""
     path = user_data_path(APP_NAME, appauthor=False, ensure_exists=True)
     return Path(path)
 
