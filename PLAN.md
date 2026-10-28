@@ -19,6 +19,14 @@ requirements throughout:
   mistake reversible (un-reconcile, edit history). Every change goes to the audit log.
 * Installs like a normal Windows program. She never sees Python.
 
+## Development constraints
+
+The designer's familiarity with wxPython is non-zero, but quite stale and was never
+developed according to any best-practices in the first place.  This project is intended
+both to serve the user's needs _and_ the goal of (re-)educating the developer.  Along the
+way, if there are multiple "best practices" to choose from, the developer should be
+advised and prompted for a decision.
+
 ## Vocabulary
 
 The sketch's terms, mapped to the existing domain model (`core/models.py`):
@@ -69,8 +77,7 @@ A "singleton" bill is a `Series` whose rule is `COUNT=1`, so one code path cover
   for Duplicati to copy the file while the app runs (see Phase 7 for the extra guarantee).
 * **Settings** live in a `setting` key/value table in the same DB, so one file holds
   everything (backups and debug transfers stay simple).
-* **Money** is integer cents, shown with the user's locale currency format
-  _(open: assume USD?)_.
+* **Money** is integer cents, shown with the user's locale currency format (or USD if that can't be determined).
 
 ## Phases
 
