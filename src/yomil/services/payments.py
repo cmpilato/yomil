@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from datetime import date, datetime
 
     from yomil.core.main_list import BillRow
-    from yomil.core.models import EventLogEntry, Occurrence
+    from yomil.core.models import EventLogEntry, Occurrence, Series
 
 
 def materialize(conn: sqlite3.Connection, today: date, *, now: datetime | None = None) -> int:
@@ -83,10 +83,7 @@ def update_pending(
     with transaction(conn):
         old = _get_pending(conn, occurrence_id)
         series = series_repo.get(conn, old.series_id)
-        scheduled = apply_weekend_policy(old.nominal_date, series.weekend_policy)
-        new = replace(
-            old, due_date=due_date, note=_clean(note), due_date_overridden=due_date != scheduled
-        )
+        new = replace(_moved(old, series, due_date), note=_clean(note))
         return _save(conn, old, new, Action.UPDATE, now)
 
 
@@ -98,16 +95,20 @@ def reconcile(
     actual_amount_cents: int,
     note: str | None,
     today: date,
+    due_date: date | None = None,
     now: datetime | None = None,
 ) -> Occurrence:
-    """Mark a pending payment paid. Snapshots the bill's name for the history."""
+    """Mark a pending payment paid. Snapshots the bill's name for the history.
+
+    ``due_date``, if given, is saved along with it, as :func:`update_pending` would.
+    """
     validate_amount(actual_amount_cents, required=True)
     now = now or utc_now()
     with transaction(conn):
         old = _get_pending(conn, occurrence_id)
         series = series_repo.get(conn, old.series_id)
         new = replace(
-            old,
+            _moved(old, series, due_date),
             status=OccurrenceStatus.PAID,
             payee_snapshot=series.payee,
             paid_date=paid_date,
@@ -126,15 +127,16 @@ def skip(
     *,
     note: str | None,
     today: date,
+    due_date: date | None = None,
     now: datetime | None = None,
 ) -> Occurrence:
-    """Dismiss a pending payment that doesn't need paying."""
+    """Dismiss a pending payment that doesn't need paying. ``due_date`` as for :func:`reconcile`."""
     now = now or utc_now()
     with transaction(conn):
         old = _get_pending(conn, occurrence_id)
         series = series_repo.get(conn, old.series_id)
         new = replace(
-            old,
+            _moved(old, series, due_date),
             status=OccurrenceStatus.SKIPPED,
             payee_snapshot=series.payee,
             note=_clean(note),
@@ -192,6 +194,14 @@ def _get_pending(conn: sqlite3.Connection, occurrence_id: int) -> Occurrence:
     if occ.resolved:
         raise InvalidStateError(f"That payment is already {occ.status.value}.")
     return occ
+
+
+def _moved(occ: Occurrence, series: Series, due_date: date | None) -> Occurrence:
+    """``occ`` with a new due date (if any). Moving it off the schedule marks it overridden."""
+    if due_date is None:
+        return occ
+    scheduled = apply_weekend_policy(occ.nominal_date, series.weekend_policy)
+    return replace(occ, due_date=due_date, due_date_overridden=due_date != scheduled)
 
 
 def _save(

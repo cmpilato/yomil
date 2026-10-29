@@ -11,6 +11,7 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from yomil.core.errors import ValidationError
 from yomil.core.models import AmountKind
 from yomil.core.urgency import Urgency
 
@@ -56,6 +57,41 @@ def format_money(cents: int, fmt: MoneyFormat = USD) -> str:
     sep = " " if fmt.space else ""
     text = f"{fmt.symbol}{sep}{number}" if fmt.symbol_first else f"{number}{sep}{fmt.symbol}"
     return f"-{text}" if cents < 0 else text
+
+
+def format_money_for_entry(cents: int, fmt: MoneyFormat = USD) -> str:
+    """``123456`` -> ``"1234.56"``: what goes in an amount field for her to edit."""
+    units, frac = divmod(cents, 100)
+    return f"{units}{fmt.decimal_point}{frac:02d}"
+
+
+_MAX_CENTS = 100_000_000_00  # nobody's household bill is a hundred million
+
+
+def parse_money(text: str, fmt: MoneyFormat = USD) -> int | None:
+    """``"$1,234.5"`` -> ``123450``; blank -> ``None``. Raises ``ValidationError``.
+
+    Forgiving about the currency symbol, spaces, and thousands separators; strict about
+    anything else, so a typo is flagged rather than guessed at.
+    """
+    cleaned = text.replace(fmt.symbol, "").replace("$", "")
+    cleaned = "".join(cleaned.split())
+    if not cleaned:
+        return None
+    if cleaned.startswith("-"):
+        raise ValidationError("The amount can't be negative.")
+    if fmt.thousands_sep and fmt.thousands_sep != fmt.decimal_point:
+        cleaned = cleaned.replace(fmt.thousands_sep, "")
+    units, _, frac = cleaned.partition(fmt.decimal_point)
+    digits = units + frac
+    if not digits or not digits.isascii() or not digits.isdecimal():
+        raise ValidationError(f"Enter an amount like {format_money(12_345, fmt)}.")
+    if len(frac) > 2:
+        raise ValidationError("Use at most two digits after the decimal point.")
+    cents = int(units or "0") * 100 + int(frac.ljust(2, "0"))
+    if cents > _MAX_CENTS:
+        raise ValidationError("That amount is too large.")
+    return cents
 
 
 def format_date(d: date) -> str:

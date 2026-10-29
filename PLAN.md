@@ -163,7 +163,7 @@ Decisions made while implementing:
 * `list_font_size` setting added now (no UI until Phase 6). Menu items for later phases
   are present but disabled; **Open…** shows a placeholder until Phase 3.
 
-### Phase 3: Event Editor (pending payment)
+### Phase 3: Event Editor (pending payment) — built; Windows manual test pending
 
 * Read-only header: bill name, nominal due date, expected amount, bill notes, and the
   bill's URL as a clickable link (for paying online).
@@ -175,6 +175,25 @@ Decisions made while implementing:
   in modal error boxes.
 
 Milestone: **usable core loop**. Bills from the seed script can be worked down.
+
+Decisions made while implementing:
+* Dates use the native `wx.adv.DatePickerCtrl` (always a valid date, so only the amount
+  needs checking).
+* Field rules live in a pure form check (`core/payment_form.py`, plus `parse_money` in
+  `core/formatting.py`), run on every keystroke; not `wx.Validator`s. Errors are
+  prefixed "⚠" and block **Mark Paid**; hints (blank amount, future paid date) don't.
+* Amount entry tolerates "$", spaces, and thousands separators; anything else (three
+  decimals, letters, a minus) is flagged rather than guessed at.
+* Future paid dates are allowed, with an inline "Is that right?" note.
+* **Save** keeps due date and note only. Closing asks to Save / Don't Save / Keep
+  Editing when those changed, and separately warns if a paid date or amount was entered
+  but not marked paid.
+* `reconcile` and `skip` take an optional `due_date`, so Mark Paid and Skip save a moved
+  due date in the same transaction (one audit entry), not as a separate Save.
+* Save, Mark Paid, and Skip each close the dialog. Enter in the amount field marks it
+  paid. After paying or skipping, the main list selects whatever moved into that row.
+* The header shows the *scheduled* date (nominal after weekend policy: what an
+  un-overridden due date would be) and, if any, how many more payments are overdue.
 
 ### Phase 4: Manage Bills
 
@@ -245,10 +264,11 @@ Milestone: **first deployment to her PC** (Phases 1–8).
 
 1. **Autopay bills:** show them, but reconcile automatically on the due date? Or still
    require her to confirm? Or hide them?
-2. **Save vs. Mark Paid:** should "Save" also keep a half-entered paid date and amount
-   as a draft, or only due date and note (current proposal)?
-3. **Future paid dates:** allow them (e.g., a check mailed or bill-pay scheduled for
-   later) or warn?
+2. ~~**Save vs. Mark Paid:** should "Save" also keep a half-entered paid date and amount
+   as a draft, or only due date and note (current proposal)?~~ Due date and note only
+   (Phase 3).
+3. ~~**Future paid dates:** allow them (e.g., a check mailed or bill-pay scheduled for
+   later) or warn?~~ Allowed, with an inline note (Phase 3).
 4. ~~**Main-list actions:** add a direct "Mark Paid (today, expected amount)" button for
    the common case?~~ Yes, with a confirm (Phase 2).
 5. **Font scope:** lists only (as sketched) or the whole UI?

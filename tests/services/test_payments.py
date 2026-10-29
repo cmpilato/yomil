@@ -236,6 +236,29 @@ def test_update_pending_tracks_override(conn: sqlite3.Connection, bill: Series) 
     assert _actions(conn, oid) == [Action.CREATE, Action.UPDATE, Action.UPDATE]
 
 
+def test_resolving_can_move_the_due_date(conn: sqlite3.Connection, bill: Series) -> None:
+    jan, feb = (o.id for o in _pending(conn, bill)[:2])
+    assert jan is not None
+    assert feb is not None
+    paid = payments.reconcile(
+        conn,
+        jan,
+        paid_date=TODAY,
+        actual_amount_cents=1,
+        note=None,
+        today=TODAY,
+        due_date=date(2026, 1, 20),
+        now=NOW,
+    )
+    assert (paid.due_date, paid.due_date_overridden) == (date(2026, 1, 20), True)
+    [entry] = payments.change_history(conn, jan)[1:]  # one transaction, one entry
+    assert entry.detail["due_date"] == ["2026-01-15", "2026-01-20"]
+
+    skipped = payments.skip(conn, feb, note=None, today=TODAY, due_date=date(2026, 2, 15), now=NOW)
+    assert (skipped.due_date, skipped.due_date_overridden) == (date(2026, 2, 15), False)
+    assert "due_date" not in payments.change_history(conn, feb)[-1].detail
+
+
 def test_history_order(conn: sqlite3.Connection, bill: Series) -> None:
     jan, feb, mar = (o.id for o in _pending(conn, bill))
     assert jan is not None

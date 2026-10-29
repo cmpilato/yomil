@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 import wx
 
 from yomil.app.bill_list import BillListCtrl
+from yomil.app.event_editor import EventEditor, Outcome
 from yomil.app.tray import TrayIcon, make_icon
 from yomil.core.errors import YomilError
 from yomil.core.formatting import format_date, format_money, quick_pay_amount, summary_text
@@ -204,14 +205,14 @@ class MainFrame(wx.Frame):
         row = self._list.selected_row()
         if row is None:
             return
-        # Placeholder until the Event Editor (Phase 3).
-        wx.MessageBox(
-            f"{row.series.payee}, due {format_date(row.occurrence.due_date)}.\n\n"
-            "The payment editor isn't built yet.",
-            "Open Payment",
-            wx.OK | wx.ICON_INFORMATION,
-            self,
-        )
+        index = self._list.selected_index()
+        dlg = EventEditor(self, self._conn, row, money_fmt=self._money_fmt, today=_today())
+        dlg.ShowModal()
+        outcome = dlg.outcome
+        dlg.Destroy()
+        # Paid or skipped: the next row moves up into this spot, so carry on from there.
+        resolved = outcome in (Outcome.PAID, Outcome.SKIPPED)
+        self.refresh(select_index=index if resolved else None)
 
     def _on_mark_paid(self, _event: wx.Event) -> None:
         row = self._list.selected_row()

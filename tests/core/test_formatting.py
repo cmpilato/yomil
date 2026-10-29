@@ -4,13 +4,16 @@ from datetime import date, timedelta
 
 import pytest
 
+from yomil.core.errors import ValidationError
 from yomil.core.formatting import (
     USD,
     MoneyFormat,
     format_date,
     format_expected_amount,
     format_money,
+    format_money_for_entry,
     money_format_from_localeconv,
+    parse_money,
     quick_pay_amount,
     status_text,
     summary_text,
@@ -129,3 +132,52 @@ def test_quick_pay_amount() -> None:
 )
 def test_summary_text(offsets: list[int], text: str) -> None:
     assert summary_text([make_row(o) for o in offsets]) == text
+
+
+EURO = MoneyFormat(symbol="€", symbol_first=False, space=True, decimal_point=",", thousands_sep=".")
+
+
+@pytest.mark.parametrize(("cents", "text"), [(0, "0.00"), (5, "0.05"), (123_456, "1234.56")])
+def test_format_money_for_entry(cents: int, text: str) -> None:
+    assert format_money_for_entry(cents) == text
+    assert parse_money(text) == cents
+
+
+@pytest.mark.parametrize(
+    ("text", "cents"),
+    [
+        ("", None),
+        ("   ", None),
+        ("$", None),
+        ("12", 1_200),
+        ("12.", 1_200),
+        ("12.5", 1_250),
+        (".5", 50),
+        (" $1,234.56 ", 123_456),
+        ("$ 89.17", 8_917),
+    ],
+)
+def test_parse_money(text: str, cents: int | None) -> None:
+    assert parse_money(text) == cents
+
+
+@pytest.mark.parametrize(
+    ("text", "message"),
+    [
+        ("-5", "negative"),
+        ("12.345", "two digits"),
+        ("abc", "like \\$123.45"),
+        ("1.2.3", "like"),
+        (".", "like"),
+        ("١٢", "like"),  # non-ASCII digits
+        ("999999999", "too large"),
+    ],
+)
+def test_parse_money_rejects(text: str, message: str) -> None:
+    with pytest.raises(ValidationError, match=message):
+        parse_money(text)
+
+
+def test_parse_money_in_another_locale() -> None:
+    assert parse_money("1.234,5 €", EURO) == 123_450
+    assert format_money_for_entry(123_450, EURO) == "1234,50"
