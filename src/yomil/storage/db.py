@@ -5,10 +5,12 @@ from __future__ import annotations
 import logging
 import re
 import sqlite3
+from contextlib import contextmanager
 from importlib import resources
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -21,11 +23,34 @@ def connect(path: Path | str) -> sqlite3.Connection:
 
     Uses SQLite's default rollback journal (not WAL) so the database file stays a single
     file that is safe to place in a cloud-synced folder.
+
+    The connection is in autocommit mode: sqlite3 never opens a transaction on its own,
+    so every write either stands alone or sits inside an explicit :func:`transaction`.
+    The file on disk is consistent whenever no transaction is open.
     """
-    conn = sqlite3.connect(path)
+    conn = sqlite3.connect(path, autocommit=True)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
+
+
+@contextmanager
+def transaction(conn: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
+    """Run the block in one write transaction: commit on success, roll back on any error.
+
+    ``BEGIN IMMEDIATE`` takes the write lock up front, so a transaction can't fail
+    halfway through for lack of it. Nesting is a bug and raises.
+    """
+    if conn.in_transaction:
+        msg = "a transaction is already open"
+        raise RuntimeError(msg)
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        yield conn
+    except BaseException:
+        conn.execute("ROLLBACK")
+        raise
+    conn.execute("COMMIT")
 
 
 def _available_migrations() -> list[tuple[int, str]]:
@@ -63,6 +88,7 @@ def migrate(conn: sqlite3.Connection) -> int:
         try:
             conn.executescript(f"BEGIN;\n{sql}\nPRAGMA user_version = {number};\nCOMMIT;")
         except sqlite3.Error:
-            conn.rollback()
+            if conn.in_transaction:
+                conn.execute("ROLLBACK")
             raise
     return schema_version(conn)

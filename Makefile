@@ -4,7 +4,7 @@
 UV ?= uv
 
 .DEFAULT_GOAL := help
-.PHONY: help install install-gui hooks lint format format-check typecheck test cov check run build clean
+.PHONY: help install install-gui hooks lint format format-check typecheck test cov check run seed run-seed build clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  %-14s %s\n", $$1, $$2}'
@@ -41,6 +41,15 @@ check: lint format-check typecheck test ## Everything CI runs
 
 run: ## Run the app (needs the gui extra)
 	$(UV) run --extra gui python -m yomil
+
+SEED_DB ?= scratch/seed.sqlite3
+
+seed: ## Create a scratch DB of sample bills at $(SEED_DB) (replacing it)
+	$(UV) run python -c "import pathlib; pathlib.Path('$(SEED_DB)').unlink(missing_ok=True)"
+	$(UV) run python -m yomil.devtools.seed $(SEED_DB)
+
+run-seed: ## Run the app against the scratch DB (run `make seed` first)
+	$(UV) run --extra gui python -m yomil --db $(SEED_DB)
 
 build: ## Build sdist and wheel into dist/
 	$(UV) build

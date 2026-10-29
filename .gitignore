@@ -12,3 +12,4 @@ build/
 *.egg-info/
 *.spec.bak
 .venv
+scratch/

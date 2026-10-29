@@ -84,9 +84,11 @@ module = ["wx", "wx.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-# Subclassing wx classes is unavoidable in the shell.
+# Subclassing wx classes is unavoidable in the shell, and when wxPython is installed
+# its partial stubs make many calls "untyped".
 module = ["yomil.app.*"]
 disallow_subclassing_any = false
+disallow_untyped_calls = false
 
 # ------------------------------------------------------------------- pytest
 [tool.pytest.ini_options]

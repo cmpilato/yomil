@@ -67,9 +67,12 @@ A "singleton" bill is a `Series` whose rule is `COUNT=1`, so one code path cover
   shows yesterday's colors.
 * **Materialization.** Occurrence rows are created lazily and idempotently (the
   `UNIQUE(series_id, nominal_date)` constraint makes inserts safe to repeat). For each
-  active series, rows exist from `dtstart` through whichever is later: today, or the
-  next instance after today. `dtstart` *is* the first due date, so creating a bill
-  never back-fills a flood of overdue payments.
+  active series, rows exist from `dtstart` through today, plus each following instance
+  up to and including the first unresolved one (normally just the next one after today;
+  paying ahead brings up the one after that). `dtstart` *is* the first due date, so
+  creating a bill never back-fills a flood of overdue payments. Materialization only
+  moves forward (`series.materialized_through`), so schedule edits and reactivating a
+  retired bill don't back-fill either.
 * **Transaction discipline (backup safety).** In rollback-journal mode the DB file is
   consistent on disk whenever no write transaction is open. Every write is one short
   explicit transaction. No transaction is ever left open while idle; tests assert
@@ -84,14 +87,14 @@ A "singleton" bill is a `Series` whose rule is `COUNT=1`, so one code path cover
 Each phase ends with `make check` green and a short manual test on Windows (for any
 phase touching `app/`).
 
-### Phase 1: Core services (headless)
+### Phase 1: Core services (headless) — done
 
 Goal: every operation the UI needs, fully tested without wx.
 
 * Migration `0002`: `setting` table; `occurrence.due_date_overridden` flag (so series
   edits know which pending payments the user moved by hand).
 * `storage/` repository functions: series CRUD; occurrence queries; settings get/set.
-* `core/` services, each one transaction and each writing `event_log`:
+* `services/` functions, each one transaction and each writing `event_log`:
   * `materialize(conn, today)`
   * `main_list(conn, today) -> list[BillRow]`: one row per active bill (its oldest
     `upcoming` occurrence), plus a count of further overdue occurrences for that bill.
@@ -108,6 +111,16 @@ Goal: every operation the UI needs, fully tested without wx.
 Exit: property tests for materialization idempotency and series-edit regeneration;
 tests for every service, including the audit-log entries and the no-open-transaction
 invariant.
+
+Decisions made while implementing:
+* Services live in a new `services/` layer (not `core/`), keeping `core/` free of I/O.
+* Connections use `autocommit=True` with explicit `BEGIN IMMEDIATE` transactions.
+* Added `series.materialized_through` (see Materialization above): a property test
+  found that without it, a schedule edit back-filled dates the old schedule never had.
+* Skipped payments also snapshot the payee; history sorts skipped ones by due date.
+* `edit_reconciled` applies to paid payments only; `unreconcile` also un-skips.
+* Setting changes are not written to `event_log` (its `entity` CHECK allows only
+  series and occurrence).
 
 ### Phase 2: Main frame
 

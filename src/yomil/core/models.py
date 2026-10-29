@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import enum
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from datetime import date, datetime
@@ -66,9 +66,47 @@ class Occurrence:
     due_date: date  # nominal date after weekend adjustment; what the user sees
     expected_amount_cents: int | None
     status: OccurrenceStatus = OccurrenceStatus.UPCOMING
-    # Filled in when reconciled. Snapshotted so later series edits can't rewrite history.
-    payee_snapshot: str | None = None
+    payee_snapshot: str | None = None  # filled when reconciled; snapshotted to protect history.
+    due_date_overridden: bool = False  # true on manual edit (breaking from series schedule)
     paid_date: date | None = None
     actual_amount_cents: int | None = None
     note: str | None = None
-    reconciled_at: datetime | None = None
+    reconciled_at: datetime | None = None  # when it was marked paid or skipped (UTC)
+
+    @property
+    def resolved(self) -> bool:
+        return self.status is not OccurrenceStatus.UPCOMING
+
+
+class Entity(enum.StrEnum):
+    """What an audit-log entry is about."""
+
+    SERIES = "series"
+    OCCURRENCE = "occurrence"
+
+
+class Action(enum.StrEnum):
+    """What happened, in an audit-log entry."""
+
+    CREATE = "create"
+    UPDATE = "update"
+    DELETE = "delete"
+    RETIRE = "retire"
+    REACTIVATE = "reactivate"
+    REGENERATE = "regenerate"  # pending occurrence adjusted by a series edit
+    RECONCILE = "reconcile"
+    SKIP = "skip"
+    UNRECONCILE = "unreconcile"
+    EDIT_RECONCILED = "edit_reconciled"
+
+
+@dataclass(frozen=True, slots=True)
+class EventLogEntry:
+    """One row of the append-only audit trail."""
+
+    id: int
+    at: datetime
+    entity: Entity
+    entity_id: int
+    action: Action
+    detail: dict[str, Any]

@@ -4,16 +4,22 @@
 
 ```
 src/yomil/
-  core/      headless domain logic (models, recurrence). No wx, no I/O.
-  storage/   SQLite connection + versioned SQL migrations (PRAGMA user_version)
+  core/      pure domain logic: models, recurrence, urgency, materialization planning,
+             main-list building, validation. No wx, no I/O.
+  storage/   SQLite: connection + transactions, versioned SQL migrations
+             (PRAGMA user_version), and repository functions (one module per table)
+  services/  use cases the UI calls; each write is one transaction plus event_log entries
   app/       wxPython shell: tray icon, main window, entry point
+  devtools/  developer-only helpers (seed script); never imported by the app
   paths.py, logging_setup.py
-tests/       mirrors src/; core + storage run on any OS, no wxPython needed
+tests/       mirrors src/; everything but app/ runs on any OS, no wxPython needed
 ```
 
-Rule of thumb: logic goes in `core/`, which takes "today" as a parameter and never
-touches the filesystem or wx, so it can be tested exhaustively and ported to another
-GUI toolkit if ever needed.
+Rule of thumb: decisions go in `core/`, which takes "today" as a parameter and never
+touches the database, filesystem, or wx, so it can be tested exhaustively and ported to
+another GUI toolkit if ever needed. `services/` is the thin imperative shell around it:
+load rows via `storage/`, ask `core/` what should change, write the result, log it. The
+UI talks only to `services/`.
 
 ## Development
 
@@ -34,6 +40,8 @@ to run everything CI runs (lint, format check, type-check, tests). On Windows, r
 from Git Bash or WSL.
 
 Run the app: `make run`, or `uv run --extra gui python -m yomil`.
+Sample data: `make seed` builds `scratch/seed.sqlite3` (bills with history, overdue
+payments, and edge cases, relative to today); `make run-seed` runs the app against it.
 Useful flags: `--minimized` (start hidden in the tray), `--no-tray`, `--db PATH`.
 
 Target platform is Windows; development happens on Linux. The tray icon, toasts, and
@@ -54,3 +62,14 @@ windowed entry point, so `print()` output is not visible).
   date only, never to the recurrence anchor.
 * SQLite in default rollback-journal mode so the DB stays one file, safe to back up or
   put in a synced folder.
+* Connections use `autocommit=True`, so sqlite3 never opens a transaction implicitly.
+  Every write goes through `with storage.db.transaction(conn):` (`BEGIN IMMEDIATE` …
+  `COMMIT`, or `ROLLBACK` on any exception), and nothing holds a transaction open while
+  idle. Tests fail if a service leaves one open.
+* Occurrences are materialized lazily and idempotently: every instance from `dtstart`
+  through today, plus the following ones up to the first unresolved one. Materialization
+  only moves forward (`series.materialized_through`), so schedule edits and reactivation
+  never back-fill old dates. A schedule edit regenerates only *future, pending,
+  not-hand-moved* payments.
+* Every change to a bill or payment writes `event_log` (`detail_json` holds a snapshot
+  or `{field: [old, new]}` diffs). Preferences in the `setting` table are not logged.
