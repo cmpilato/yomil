@@ -19,3 +19,7 @@ def put(conn: sqlite3.Connection, key: str, value: str) -> None:
         " ON CONFLICT (key) DO UPDATE SET value = excluded.value",
         (key, value),
     )
+
+
+def delete(conn: sqlite3.Connection, key: str) -> None:
+    conn.execute("DELETE FROM setting WHERE key = ?", (key,))

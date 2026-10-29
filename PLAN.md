@@ -122,7 +122,7 @@ Decisions made while implementing:
 * Setting changes are not written to `event_log` (its `entity` CHECK allows only
   series and occurrence).
 
-### Phase 2: Main frame
+### Phase 2: Main frame — built; Windows manual test pending
 
 * Report-style list. Columns: Due, Bill, Amount, Status ("Overdue 3 days", "Due
   tomorrow", "In 12 days"), Note. Sorted by due date, then bill name.
@@ -132,13 +132,36 @@ Decisions made while implementing:
 * A bill with more than one overdue payment shows "(+N more overdue)". Resolving the
   oldest brings up the next.
 * Item activation (double-click or Enter) opens the Event Editor. A visible **Open…**
-  button does the same _(open: also a direct **Mark Paid** button?)_.
+  button does the same. A **Mark Paid** button pays the selected bill today at its
+  expected amount, after a confirm.
 * Menus: **File** › Export… (Phase 7), Exit · **Bills** › Manage Bills… (Phase 4),
   Payment History… (Phase 5) · **Tools** › Preferences… (Phase 6).
 * Empty state that points to Manage Bills. Refresh at midnight (wx.Timer) and on show.
 * Applies font preferences (defaults until Phase 6).
 
 Exit: run against the seed DB on Windows at normal and large font sizes.
+
+Decisions made while implementing:
+* The list is a **virtual `wx.ListCtrl`** (native ListView on Windows), not
+  `DataViewListCtrl`. The rows live in one Python list; the control asks for text and
+  styling per visible row.
+* All wording (dates, money, status, the status-bar summary) is in `core/formatting.py`
+  and unit-tested; `app/` adds only styling.
+* Dates read "Tue Mar 3, 2026". Estimated amounts read "About $120.00"; variable bills
+  without an amount read "Varies".
+* Money uses the locale's currency format, read once at startup *before* `wx.App`
+  exists, then the process locale is restored (wx asserts on Windows if Python changes
+  the C runtime locale under it). USD if the locale has none.
+* **Mark Paid** is disabled when there's no expected amount; for estimated and variable
+  bills the confirm says it's the expected amount and points to Open….
+* After Mark Paid, the selection stays at the same row position (she works down the
+  list). Other refreshes keep the same bill selected.
+* Refresh also happens on window activation if the date changed (catches a missed
+  midnight timer after sleep).
+* A status bar shows "2 bills overdue, 1 due soon" (one more non-color cue).
+* The window widens (up to the screen) when a larger font needs it.
+* `list_font_size` setting added now (no UI until Phase 6). Menu items for later phases
+  are present but disabled; **Open…** shows a placeholder until Phase 3.
 
 ### Phase 3: Event Editor (pending payment)
 
@@ -226,8 +249,8 @@ Milestone: **first deployment to her PC** (Phases 1–8).
    as a draft, or only due date and note (current proposal)?
 3. **Future paid dates:** allow them (e.g., a check mailed or bill-pay scheduled for
    later) or warn?
-4. **Main-list actions:** add a direct "Mark Paid (today, expected amount)" button for
-   the common case?
+4. ~~**Main-list actions:** add a direct "Mark Paid (today, expected amount)" button for
+   the common case?~~ Yes, with a confirm (Phase 2).
 5. **Font scope:** lists only (as sketched) or the whole UI?
 6. **Currency/locale:** USD only?
 7. **History scope:** include skipped payments (proposed yes)? Any filtering?

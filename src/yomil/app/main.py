@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import locale
 import logging
 import sys
 
 from yomil import __version__
+from yomil.core.formatting import USD, MoneyFormat, money_format_from_localeconv
 from yomil.logging_setup import configure_logging
 from yomil.paths import default_db_path, log_dir
 from yomil.storage import db
@@ -28,10 +30,30 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def _locale_money_format() -> MoneyFormat:
+    """Snapshot the user's currency format, then put the process locale back.
+
+    Done before ``wx.App`` exists: wx manages the C runtime locale itself (on Windows it
+    asserts if Python changes it underneath), so we only borrow it briefly here.
+    """
+    try:
+        previous = locale.setlocale(locale.LC_MONETARY)
+        locale.setlocale(locale.LC_MONETARY, "")
+        try:
+            return money_format_from_localeconv(locale.localeconv())
+        finally:
+            locale.setlocale(locale.LC_MONETARY, previous)
+    except locale.Error:
+        log.warning("Could not read the locale's currency format; using USD")
+        return USD
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     configure_logging(log_dir() / "yomil.log")
     log.info("YOMIL %s starting", __version__)
+
+    money_fmt = _locale_money_format()
 
     # Import wx lazily so `--help` and the headless core work without it installed.
     import wx
@@ -52,7 +74,7 @@ def main(argv: list[str] | None = None) -> int:
     use_tray = not args.no_tray and tray_available()
     if not use_tray:
         log.info("Running without a tray icon")
-    frame = MainFrame(conn, use_tray=use_tray)
+    frame = MainFrame(conn, money_fmt=money_fmt, use_tray=use_tray)
     # Without a tray there would be no way to reach a hidden window, so always show it.
     if not args.minimized or not use_tray:
         frame.show_window()
