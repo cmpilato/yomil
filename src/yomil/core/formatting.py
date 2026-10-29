@@ -99,14 +99,18 @@ def format_date(d: date) -> str:
     return f"{d:%a %b} {d.day}, {d.year}"
 
 
-def format_expected_amount(row: BillRow, fmt: MoneyFormat = USD) -> str:
-    """The Amount column: exact, approximate (estimated bills), or "Varies"."""
-    cents = row.occurrence.expected_amount_cents
+def format_amount(cents: int | None, kind: AmountKind, fmt: MoneyFormat = USD) -> str:
+    """An expected amount: exact, approximate (estimated bills), or "Varies"."""
     if cents is None:
         return "Varies"
-    if row.series.amount_kind is AmountKind.FIXED:
+    if kind is AmountKind.FIXED:
         return format_money(cents, fmt)
     return f"About {format_money(cents, fmt)}"
+
+
+def format_expected_amount(row: BillRow, fmt: MoneyFormat = USD) -> str:
+    """The main list's Amount column."""
+    return format_amount(row.occurrence.expected_amount_cents, row.series.amount_kind, fmt)
 
 
 def _days(n: int) -> str:

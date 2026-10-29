@@ -17,6 +17,7 @@ import wx
 
 from yomil.app.bill_list import BillListCtrl
 from yomil.app.event_editor import EventEditor, Outcome
+from yomil.app.manage_bills import ManageBillsDialog
 from yomil.app.tray import TrayIcon, make_icon
 from yomil.core.errors import YomilError
 from yomil.core.formatting import format_date, format_money, quick_pay_amount, summary_text
@@ -87,11 +88,12 @@ class MainFrame(wx.Frame):
         menu_bar.Append(tools_menu, "&Tools")
         self.SetMenuBar(menu_bar)
 
-        # Not built yet (Phases 4-7).
-        for item_id in (_ID_EXPORT, _ID_MANAGE_BILLS, _ID_HISTORY, wx.ID_PREFERENCES):
+        # Not built yet (Phases 5-7).
+        for item_id in (_ID_EXPORT, _ID_HISTORY, wx.ID_PREFERENCES):
             menu_bar.Enable(item_id, False)
 
         self.Bind(wx.EVT_MENU, lambda _evt: self.quit(), id=wx.ID_EXIT)
+        self.Bind(wx.EVT_MENU, self._on_manage_bills, id=_ID_MANAGE_BILLS)
 
     def _build_body(self) -> None:
         panel = self._panel = wx.Panel(self)
@@ -105,9 +107,12 @@ class MainFrame(wx.Frame):
 
         empty = wx.Panel(self._book)
         self._empty_text = wx.StaticText(empty, style=wx.ALIGN_CENTRE_HORIZONTAL)
+        manage = wx.Button(empty, label="&Manage Bills…")
+        manage.Bind(wx.EVT_BUTTON, self._on_manage_bills)
         empty_sizer = wx.BoxSizer(wx.VERTICAL)
         empty_sizer.AddStretchSpacer()
         empty_sizer.Add(self._empty_text, 0, wx.EXPAND | wx.ALL, self.FromDIP(20))
+        empty_sizer.Add(manage, 0, wx.ALIGN_CENTER_HORIZONTAL)
         empty_sizer.AddStretchSpacer()
         empty.SetSizer(empty_sizer)
         self._book.AddPage(empty, "empty")
@@ -160,8 +165,7 @@ class MainFrame(wx.Frame):
             self._empty_text.SetLabel(
                 "Nothing to pay right now."
                 if any_bills
-                else "You don't have any bills yet.\n\n"
-                "To add one, open the Bills menu and choose Manage Bills…"
+                else "You don't have any bills yet. Add one with Manage Bills."
             )
             self._book.SetSelection(_PAGE_EMPTY)
             self._book.GetPage(_PAGE_EMPTY).Layout()
@@ -213,6 +217,12 @@ class MainFrame(wx.Frame):
         # Paid or skipped: the next row moves up into this spot, so carry on from there.
         resolved = outcome in (Outcome.PAID, Outcome.SKIPPED)
         self.refresh(select_index=index if resolved else None)
+
+    def _on_manage_bills(self, _event: wx.Event) -> None:
+        dlg = ManageBillsDialog(self, self._conn, money_fmt=self._money_fmt, today=_today())
+        dlg.ShowModal()
+        dlg.Destroy()
+        self.refresh()
 
     def _on_mark_paid(self, _event: wx.Event) -> None:
         row = self._list.selected_row()

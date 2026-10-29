@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from yomil.core.payment_form import FieldMessage, PaymentCheck, check_payment
+from yomil.core.forms import FieldMessage
+from yomil.core.payment_form import PaymentCheck, check_payment
 
 TODAY = date(2026, 3, 10)
 

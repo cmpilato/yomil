@@ -11,17 +11,12 @@ from typing import TYPE_CHECKING
 
 from yomil.core.errors import ValidationError
 from yomil.core.formatting import USD, parse_money
+from yomil.core.forms import FieldMessage
 
 if TYPE_CHECKING:
     from datetime import date
 
     from yomil.core.formatting import MoneyFormat
-
-
-@dataclass(frozen=True, slots=True)
-class FieldMessage:
-    text: str
-    is_error: bool  # an error blocks Mark Paid; otherwise it's just a hint
 
 
 @dataclass(frozen=True, slots=True)

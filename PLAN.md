@@ -195,7 +195,7 @@ Decisions made while implementing:
 * The header shows the *scheduled* date (nominal after weekend policy: what an
   un-overridden due date would be) and, if any, how many more payments are overdue.
 
-### Phase 4: Manage Bills
+### Phase 4: Manage Bills — built; Windows manual test pending
 
 * List of all bills (active first; retired shown greyed). Buttons: Add, Edit, Retire /
   Reactivate, Delete. Delete is allowed only if the bill has no paid history (matches
@@ -206,6 +206,36 @@ Decisions made while implementing:
   policy, amount kind and expected amount, autopay, URL, notes, category.
 * Live preview: "Next 5 due dates: …" so she can check the schedule before saving.
 * `lead_days` is hidden until Phase 9 ships notifications.
+
+Decisions made while implementing:
+* Hand-written sizers again (wxFormBuilder/XRC considered; strict typing and the
+  conditional layout won out).
+* **The schedule is "how often"; the day comes from the first due date**
+  (`core/schedule.py`). Repeats: One time only / Weekly / Monthly / Yearly, with "every
+  N". The weekday, day of month, or month and day are read off the first due date and
+  described in words ("Every 3 months on the 3rd"), so the first due date is always a
+  real occurrence. dateutil silently drops a `dtstart` that doesn't match its rule.
+* Rules are parsed back only if the picker would write *exactly* that rule; anything
+  else is shown as "Custom (set up outside YOMIL)" and kept untouched unless she picks
+  a new schedule. So opening and saving a bill never rewrites its rule (tested).
+* Month-end: a first due date on the 29th–31st means "or the last day of shorter
+  months". A monthly bill whose first due date is a *clamped* month-end (e.g. "the
+  31st", first due April 30) keeps its day as `Schedule.month_day` until the first due
+  date is changed. Feb 29 yearly bills fall on Feb 28 in common years.
+* Field rules live in `core/bill_form.py` (`check_bill`, `schedule_summary`), shared
+  `FieldMessage` in `core/forms.py`. Messages appear once a field is touched, or on all
+  fields after a Save attempt, which also focuses the first bad field.
+* The preview lists the next 5 due dates (after weekend adjustment), warns how many
+  payments a *new* bill with a past first due date will create as overdue, and, on an
+  edit, notes that upcoming un-moved payments will follow the new schedule.
+* Web addresses: "example.com" becomes "https://example.com"; only http(s) is allowed.
+  A duplicate bill name is a hint, not an error.
+* Manage Bills uses a plain (non-virtual) `ListCtrl`, rebuilt after each change.
+  Retired bills are greyed *and* say "Retired". Delete key deletes. Retire needs no
+  confirm (Reactivate undoes it); Delete confirms, and for a bill with history offers
+  Retire instead.
+* Controls inside a `StaticBoxSizer` are children of its `StaticBox` (wx 3.x rule).
+* The main window's empty state now has a **Manage Bills…** button.
 
 ### Phase 5: Payment History and Event Viewer
 

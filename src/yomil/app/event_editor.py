@@ -30,8 +30,8 @@ if TYPE_CHECKING:
     from datetime import date
 
     from yomil.core.formatting import MoneyFormat
+    from yomil.core.forms import FieldMessage
     from yomil.core.main_list import BillRow
-    from yomil.core.payment_form import FieldMessage
 
 log = logging.getLogger(__name__)
 
