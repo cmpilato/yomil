@@ -24,13 +24,13 @@ PAID = Occurrence(
     expected_amount_cents=10_000,
     status=OccurrenceStatus.PAID,
     payee_snapshot="Electric",
-    paid_date=date(2026, 3, 12),
+    paid_at=datetime(2026, 3, 12, 10, 0),  # noqa: DTZ001
     actual_amount_cents=9_817,
     note="Paid by phone,\nconfirmation 1234",
     reconciled_at=datetime(2026, 3, 12, 15, 0, tzinfo=UTC),
 )
 SKIPPED = replace(
-    PAID, status=OccurrenceStatus.SKIPPED, paid_date=None, actual_amount_cents=None, note=None
+    PAID, status=OccurrenceStatus.SKIPPED, paid_at=None, actual_amount_cents=None, note=None
 )
 
 

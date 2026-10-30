@@ -80,7 +80,7 @@ def test_occurrence_round_trip_and_insert_if_missing(conn: sqlite3.Connection) -
         status=OccurrenceStatus.PAID,
         due_date_overridden=True,
         payee_snapshot="Electric",
-        paid_date=date(2026, 2, 14),
+        paid_at=datetime(2026, 2, 14, 9, 30, 15),  # noqa: DTZ001
         actual_amount_cents=512,
         note="n",
         reconciled_at=datetime(2026, 2, 14, 9, 30, tzinfo=UTC),

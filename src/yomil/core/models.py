@@ -3,7 +3,8 @@
 Conventions:
 * Money is integer cents (never floats).
 * Dates are naive local calendar dates: a bill due on the 15th is due on the 15th
-  wherever the machine is. Timestamps (``datetime``) appear only on audit records.
+  wherever the machine is. The one wall-clock time, :attr:`Occurrence.paid_at`, is naive
+  local too. Other timestamps (``datetime``) are UTC and appear only on audit records.
 """
 
 from __future__ import annotations
@@ -71,7 +72,7 @@ class Occurrence:
     status: OccurrenceStatus = OccurrenceStatus.UPCOMING
     payee_snapshot: str | None = None  # filled when reconciled; snapshotted to protect history.
     due_date_overridden: bool = False  # true on manual edit (breaking from series schedule)
-    paid_date: date | None = None
+    paid_at: datetime | None = None  # when it was paid (naive local); shown as a date only
     actual_amount_cents: int | None = None
     note: str | None = None
     reconciled_at: datetime | None = None  # when it was marked paid or skipped (UTC)
@@ -79,6 +80,10 @@ class Occurrence:
     @property
     def resolved(self) -> bool:
         return self.status is not OccurrenceStatus.UPCOMING
+
+    @property
+    def paid_date(self) -> date | None:
+        return None if self.paid_at is None else self.paid_at.date()
 
 
 class Entity(enum.StrEnum):

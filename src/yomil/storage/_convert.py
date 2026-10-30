@@ -13,6 +13,16 @@ def iso_or_none(value: date | None) -> str | None:
     return None if value is None else value.isoformat()
 
 
+def local_timestamp_or_none(value: datetime | None) -> str | None:
+    """Naive local ISO-8601, to the second."""
+    if value is None:
+        return None
+    if value.tzinfo is not None:
+        msg = "local timestamps must be naive"
+        raise ValueError(msg)
+    return value.strftime("%Y-%m-%dT%H:%M:%S")
+
+
 def timestamp(value: datetime) -> str:
     """UTC ISO-8601 with a ``Z`` suffix, to the second."""
     if value.tzinfo is None:

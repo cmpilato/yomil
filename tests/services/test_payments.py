@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING
 
 import pytest
@@ -205,10 +205,11 @@ def test_edit_reconciled(conn: sqlite3.Connection, bill: Series) -> None:
         "fixed",
     )
     assert payments.get(conn, oid) == edited
+    paid_time = NOW.astimezone().time().isoformat()
     last = payments.change_history(conn, oid)[-1]
     assert last.action is Action.EDIT_RECONCILED
     assert last.detail == {
-        "paid_date": ["2026-03-01", "2026-02-27"],
+        "paid_at": [f"2026-03-01T{paid_time}", f"2026-02-27T{paid_time}"],
         "actual_amount_cents": [5, 7],
         "note": [None, "fixed"],
     }
@@ -272,3 +273,33 @@ def test_history_order(conn: sqlite3.Connection, bill: Series) -> None:
         conn, mar, paid_date=date(2026, 1, 20), actual_amount_cents=1, note=None, today=TODAY
     )
     assert [o.id for o in payments.history(conn)] == [feb, mar, jan]
+
+
+def test_paid_at_is_the_paid_date_at_the_local_time_now(
+    conn: sqlite3.Connection, bill: Series
+) -> None:
+    now = datetime(2026, 3, 1, 12, 34, 56, 789, tzinfo=NOW.tzinfo)
+    paid = payments.reconcile(
+        conn,
+        _oldest_id(conn, bill),
+        paid_date=date(2026, 2, 20),
+        actual_amount_cents=1,
+        note=None,
+        today=TODAY,
+        now=now,
+    )
+    expected = datetime.combine(date(2026, 2, 20), now.astimezone().time().replace(microsecond=0))
+    assert paid.paid_at == expected
+    assert paid.paid_date == date(2026, 2, 20)
+
+
+def test_history_orders_same_day_payments_by_time(conn: sqlite3.Connection, bill: Series) -> None:
+    jan, feb = (o.id for o in _pending(conn, bill)[:2])
+    assert jan is not None
+    assert feb is not None
+    later = NOW + timedelta(hours=1)
+    for oid, now in ((jan, later), (feb, NOW)):  # the newer one has the older id
+        payments.reconcile(
+            conn, oid, paid_date=TODAY, actual_amount_cents=1, note=None, today=TODAY, now=now
+        )
+    assert [o.id for o in payments.history(conn)] == [jan, feb]

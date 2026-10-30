@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from yomil.core.errors import InvalidStateError
@@ -20,7 +21,7 @@ from yomil.storage.db import transaction
 
 if TYPE_CHECKING:
     import sqlite3
-    from datetime import date, datetime
+    from datetime import date
 
     from yomil.core.main_list import BillRow
     from yomil.core.models import EventLogEntry, Occurrence, Series
@@ -100,6 +101,8 @@ def reconcile(
 ) -> Occurrence:
     """Mark a pending payment paid. Snapshots the bill's name for the history.
 
+    The time of day it was paid is taken to be now (local), even if ``paid_date`` isn't
+    today, so payments recorded on the same day sort in the order they were recorded.
     ``due_date``, if given, is saved along with it, as :func:`update_pending` would.
     """
     validate_amount(actual_amount_cents, required=True)
@@ -111,7 +114,7 @@ def reconcile(
             _moved(old, series, due_date),
             status=OccurrenceStatus.PAID,
             payee_snapshot=series.payee,
-            paid_date=paid_date,
+            paid_at=_at_local_time_of(paid_date, now),
             actual_amount_cents=actual_amount_cents,
             note=_clean(note),
             reconciled_at=now,
@@ -160,7 +163,7 @@ def unreconcile(
             old,
             status=OccurrenceStatus.UPCOMING,
             payee_snapshot=None,
-            paid_date=None,
+            paid_at=None,
             actual_amount_cents=None,
             reconciled_at=None,
         )
@@ -176,15 +179,19 @@ def edit_reconciled(
     note: str | None,
     now: datetime | None = None,
 ) -> Occurrence:
-    """Correct a paid payment's date, amount, or note."""
+    """Correct a paid payment's date, amount, or note. The time of day it was paid is kept."""
     validate_amount(actual_amount_cents, required=True)
     now = now or utc_now()
     with transaction(conn):
         old = occ_repo.get(conn, occurrence_id)
         if old.status is not OccurrenceStatus.PAID:
             raise InvalidStateError("Only paid payments can be edited this way.")
+        assert old.paid_at is not None
         new = replace(
-            old, paid_date=paid_date, actual_amount_cents=actual_amount_cents, note=_clean(note)
+            old,
+            paid_at=datetime.combine(paid_date, old.paid_at.time()),
+            actual_amount_cents=actual_amount_cents,
+            note=_clean(note),
         )
         return _save(conn, old, new, Action.EDIT_RECONCILED, now)
 
@@ -211,6 +218,11 @@ def _save(
     occ_repo.update(conn, new)
     event_log.append(conn, Entity.OCCURRENCE, new.id, action, diff(old, new), now)
     return new
+
+
+def _at_local_time_of(day: date, now: datetime) -> datetime:
+    """``day`` at the local wall-clock time of ``now`` (to the second), as a naive datetime."""
+    return datetime.combine(day, now.astimezone().time().replace(microsecond=0))
 
 
 def _clean(note: str | None) -> str | None:

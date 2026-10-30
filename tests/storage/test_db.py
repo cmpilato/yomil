@@ -58,7 +58,7 @@ def test_unique_occurrence_per_series_and_nominal_date(conn: sqlite3.Connection)
         conn.execute(sql, (sid,))
 
 
-def test_paid_requires_paid_date_and_timestamp(conn: sqlite3.Connection) -> None:
+def test_paid_requires_paid_at_and_timestamp(conn: sqlite3.Connection) -> None:
     sid = _insert_series(conn)
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute(
@@ -129,3 +129,41 @@ def test_failed_migration_rolls_back(tmp_path: Path, monkeypatch: pytest.MonkeyP
         assert not c.in_transaction
         assert db.schema_version(c) == 0
         assert c.execute("SELECT name FROM sqlite_master WHERE name = 't'").fetchone() is None
+
+
+def test_migration_0004_adds_a_time_to_paid_dates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with closing(db.connect(tmp_path / "x.sqlite3")) as c:
+        all_migrations = db._available_migrations()
+        monkeypatch.setattr(db, "_available_migrations", lambda: all_migrations[:3])
+        db.migrate(c)
+        sid = _insert_series(c)
+        # The local time of a UTC timestamp, the way SQLite will see it.
+        reconciled = "2026-02-10T15:30:45Z"
+        local_day, local_time = c.execute(
+            "SELECT date(?, 'localtime'), strftime('%H:%M:%S', ?, 'localtime')",
+            (reconciled, reconciled),
+        ).fetchone()
+        rows = [
+            ("2026-01-15", local_day, reconciled),  # marked paid on the day it was paid
+            ("2026-02-15", "2026-01-02", reconciled),  # recorded later (or corrected)
+        ]
+        for nominal, paid, at in rows:
+            c.execute(
+                "INSERT INTO occurrence (series_id, nominal_date, due_date, status,"
+                " paid_date, reconciled_at) VALUES (?, ?, ?, 'paid', ?, ?)",
+                (sid, nominal, nominal, paid, at),
+            )
+        c.execute(
+            "INSERT INTO occurrence (series_id, nominal_date, due_date)"
+            " VALUES (?, '2026-03-15', '2026-03-15')",
+            (sid,),
+        )
+
+        monkeypatch.setattr(db, "_available_migrations", lambda: all_migrations)
+        db.migrate(c)
+        paid_at = [r[0] for r in c.execute("SELECT paid_at FROM occurrence ORDER BY nominal_date")]
+        assert paid_at == [f"{local_day}T{local_time}", "2026-01-02T00:00:00", None]
+        with pytest.raises(sqlite3.IntegrityError):  # the CHECK follows the rename
+            c.execute("UPDATE occurrence SET paid_at = NULL WHERE nominal_date = '2026-01-15'")

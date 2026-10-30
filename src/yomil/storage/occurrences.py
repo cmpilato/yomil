@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from yomil.core.errors import NotFoundError
 from yomil.core.models import Occurrence, OccurrenceStatus
 from yomil.storage import series as series_repo
 from yomil.storage._convert import (
-    date_or_none,
-    iso_or_none,
+    local_timestamp_or_none,
     parse_timestamp_or_none,
     timestamp_or_none,
 )
@@ -27,7 +26,7 @@ _MUTABLE = (
     "status",
     "due_date_overridden",
     "payee_snapshot",
-    "paid_date",
+    "paid_at",
     "actual_amount_cents",
     "note",
     "reconciled_at",
@@ -41,7 +40,7 @@ def _mutable_params(o: Occurrence) -> tuple[object, ...]:
         o.status.value,
         int(o.due_date_overridden),
         o.payee_snapshot,
-        iso_or_none(o.paid_date),
+        local_timestamp_or_none(o.paid_at),
         o.actual_amount_cents,
         o.note,
         timestamp_or_none(o.reconciled_at),
@@ -58,7 +57,7 @@ def from_row(row: sqlite3.Row) -> Occurrence:
         status=OccurrenceStatus(row["status"]),
         due_date_overridden=bool(row["due_date_overridden"]),
         payee_snapshot=row["payee_snapshot"],
-        paid_date=date_or_none(row["paid_date"]),
+        paid_at=None if row["paid_at"] is None else datetime.fromisoformat(row["paid_at"]),
         actual_amount_cents=row["actual_amount_cents"],
         note=row["note"],
         reconciled_at=parse_timestamp_or_none(row["reconciled_at"]),
@@ -116,9 +115,9 @@ def unresolved_for_active_series(conn: sqlite3.Connection) -> list[tuple[Series,
 
 
 def resolved(conn: sqlite3.Connection) -> list[Occurrence]:
-    """Paid and skipped occurrences, newest first (by paid date, or due date if skipped)."""
+    """Paid and skipped occurrences, newest first (by paid time, or due date if skipped)."""
     rows = conn.execute(
         "SELECT * FROM occurrence WHERE status <> 'upcoming'"
-        " ORDER BY COALESCE(paid_date, due_date) DESC, id DESC"
+        " ORDER BY COALESCE(paid_at, due_date) DESC, id DESC"
     )
     return [from_row(r) for r in rows]
