@@ -6,6 +6,7 @@ import argparse
 import locale
 import logging
 import sys
+from pathlib import Path
 
 from yomil import __version__
 from yomil.core.formatting import USD, MoneyFormat, money_format_from_localeconv
@@ -65,11 +66,17 @@ def main(argv: list[str] | None = None) -> int:
         log.info("Another instance is already running; exiting")
         return 0
 
-    conn = db.connect(args.db or default_db_path())
-    db.migrate(conn)
-
     from yomil.app.frame import MainFrame
+    from yomil.app.safety import SnapshotKeeper, check_and_recover
     from yomil.app.tray import tray_available
+
+    db_path = Path(args.db) if args.db else default_db_path()
+    if not check_and_recover(db_path):
+        return 1
+    conn = db.connect(db_path)
+    db.migrate(conn)
+    snapshots = SnapshotKeeper(conn, db_path)
+    snapshots.start()
 
     use_tray = not args.no_tray and tray_available()
     if not use_tray:
@@ -79,6 +86,8 @@ def main(argv: list[str] | None = None) -> int:
     if not args.minimized or not use_tray:
         frame.show_window()
     app.MainLoop()
+    snapshots.Stop()
+    snapshots.flush()
     conn.close()
     return 0
 

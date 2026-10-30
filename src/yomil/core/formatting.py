@@ -17,7 +17,7 @@ from yomil.core.urgency import Urgency
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
-    from datetime import date
+    from datetime import date, datetime
 
     from yomil.core.main_list import BillRow
 
@@ -97,6 +97,12 @@ def parse_money(text: str, fmt: MoneyFormat = USD) -> int | None:
 def format_date(d: date) -> str:
     """``"Tue Mar 3, 2026"``: unambiguous, unlike all-numeric dates."""
     return f"{d:%a %b} {d.day}, {d.year}"
+
+
+def format_date_time(dt: datetime) -> str:
+    """``"Tue Mar 3, 2026 at 3:05 PM"`` (12-hour clock, as she'd say it)."""
+    hour = dt.hour % 12 or 12
+    return f"{format_date(dt)} at {hour}:{dt.minute:02d} {'AM' if dt.hour < 12 else 'PM'}"
 
 
 def format_amount(cents: int | None, kind: AmountKind, fmt: MoneyFormat = USD) -> str:

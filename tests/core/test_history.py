@@ -6,6 +6,7 @@ from datetime import UTC, date, datetime
 from yomil.core.history import (
     HISTORY_COLUMNS,
     history_cells,
+    history_csv_row,
     history_date,
     payment_details,
     unresolve_question,
@@ -91,3 +92,23 @@ def test_unresolve_question() -> None:
     assert unresolve_question(SKIPPED, SERIES).startswith("Undo skipping")
     assert "retired" not in unresolve_question(PAID, SERIES)
     assert "is retired" in unresolve_question(PAID, replace(SERIES, active=False))
+
+
+def test_history_csv_row() -> None:
+    assert history_csv_row(PAID, SERIES) == (
+        "2026-03-12",
+        "Electric",
+        "Paid",
+        "98.17",
+        "2026-03-16",
+        "Paid by phone,\nconfirmation 1234",
+    )
+    assert history_csv_row(replace(PAID, actual_amount_cents=5), SERIES)[3] == "0.05"
+    assert history_csv_row(SKIPPED, SERIES) == (
+        "2026-03-16",
+        "Electric",
+        "Skipped",
+        "",
+        "2026-03-16",
+        "",
+    )

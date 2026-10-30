@@ -287,7 +287,7 @@ Decisions made while implementing:
   **Save**; then the main window refreshes. Cancel with changes asks Save / Don't Save /
   Keep Editing. Both settings are saved in one transaction (`save_preferences`).
 
-### Phase 7: Data safety and export
+### Phase 7: Data safety and export — built; Windows manual test pending
 
 * **Live-backup safety:** on top of Phase 1's transaction discipline, after each
   committed change write a consistent snapshot with SQLite's online backup API
@@ -300,6 +300,26 @@ Decisions made while implementing:
   history she can print or hand to someone.
 * Startup integrity check (`PRAGMA quick_check`); if it fails, a clear message
   pointing to the snapshot.
+
+Decisions made while implementing:
+* **Snapshots are driven by SQLite's change counter**, not hooks: a 2-second `wx.Timer`
+  (`app/safety.py`) snapshots when `conn.total_changes` has moved, plus once at startup
+  and at exit. Nothing else in the app has to remember to call it. A failed write (e.g.
+  the file is held open) is logged once and retried on the next tick.
+* The snapshot lives beside whichever database is open (`<db folder>/snapshot/`), so
+  `--db` debugging sessions never overwrite her snapshot.
+* **No full-database export:** SQLite files are portable, and the snapshot is already a
+  consistent copy, so File has just **Export Payment History…** (CSV: UTF-8 with BOM for
+  Excel, ISO dates, plain `1234.56` amounts, skipped payments included, defaulting to
+  her Documents folder with a dated name).
+* **Damaged at startup:** if the snapshot passes its own check, she's offered
+  **Restore Safety Copy** / **Quit**, with the copy's date and time. Restoring renames the
+  damaged file (and its `-journal`, which SQLite would otherwise replay into the
+  restored file) to `yomil-damaged-<timestamp>.sqlite3`. With no usable snapshot, she's
+  told not to use YOMIL until someone looks at it, and it quits.
+* The integrity check opens the file read-write on purpose: after a crash mid-commit,
+  rolling back the leftover journal is normal recovery, not damage (tested).
+* Data folder, backups, and debugging are documented in DEVELOPING.md.
 
 Milestone: **safe to hold real data.**
 

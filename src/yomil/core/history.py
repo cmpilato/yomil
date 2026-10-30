@@ -85,3 +85,24 @@ def unresolve_question(occ: Occurrence, series: Series) -> str:
             "unless you reactivate the bill in Manage Bills."
         )
     return text
+
+
+CSV_COLUMNS = ("Date", "Bill", "Status", "Amount", "Due date", "Note")
+
+
+def history_csv_row(occ: Occurrence, series: Series) -> tuple[str, ...]:
+    """One row of the exported history, matching :data:`CSV_COLUMNS`.
+
+    Plain values a spreadsheet understands (``2026-03-12``, ``1234.56``), rather than
+    the on-screen formatting.
+    """
+    paid = occ.status is OccurrenceStatus.PAID
+    cents = occ.actual_amount_cents
+    return (
+        history_date(occ).isoformat(),
+        bill_name(occ, series),
+        "Paid" if paid else "Skipped",
+        f"{cents // 100}.{cents % 100:02d}" if paid and cents is not None else "",
+        occ.due_date.isoformat(),
+        occ.note or "",
+    )

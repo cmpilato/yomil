@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 
@@ -9,6 +9,7 @@ from yomil.core.formatting import (
     USD,
     MoneyFormat,
     format_date,
+    format_date_time,
     format_expected_amount,
     format_money,
     format_money_for_entry,
@@ -181,3 +182,12 @@ def test_parse_money_rejects(text: str, message: str) -> None:
 def test_parse_money_in_another_locale() -> None:
     assert parse_money("1.234,5 €", EURO) == 123_450
     assert format_money_for_entry(123_450, EURO) == "1234,50"
+
+
+@pytest.mark.parametrize(
+    ("hour", "minute", "text"),
+    [(0, 5, "12:05 AM"), (9, 30, "9:30 AM"), (12, 0, "12:00 PM"), (15, 5, "3:05 PM")],
+)
+def test_format_date_time(hour: int, minute: int, text: str) -> None:
+    dt = datetime(2026, 3, 3, hour, minute)  # noqa: DTZ001
+    assert format_date_time(dt) == f"Tue Mar 3, 2026 at {text}"

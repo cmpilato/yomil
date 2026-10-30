@@ -55,6 +55,27 @@ that mode anywhere.
 Logs go to the per-user log directory (the app has no console when launched via the
 windowed entry point, so `print()` output is not visible).
 
+## Data and backups
+
+Everything (bills, payments, audit log, preferences) is one SQLite file:
+`%LOCALAPPDATA%\yomil\yomil.sqlite3` on Windows (`~/.local/share/yomil/` on Linux), or
+whatever `--db` names.
+
+* **Safety snapshot:** while YOMIL runs, it keeps `snapshot\yomil.sqlite3` beside the
+  database: a consistent copy (SQLite's online backup API, written to a temp file and
+  swapped in), refreshed within about 2 seconds of any change and at exit.
+* **Backups (Duplicati):** back up the whole `yomil` folder. Use
+  `--snapshot-policy=auto` (VSS) so the live file is copied consistently too; even
+  without it, the `snapshot` copy is always intact.
+* **Startup check:** YOMIL runs `PRAGMA quick_check` before opening the database. If it
+  fails, she's offered the snapshot (if that passes the check too); the damaged file is
+  kept as `yomil-damaged-<timestamp>.sqlite3`, never deleted.
+* **Debugging her data:** SQLite files are portable across machines. Copy her snapshot
+  (or the main file while YOMIL is closed) and run `yomil --db <file>`. Point `--db` at a
+  copy: the snapshot is written beside whatever file you open.
+* **File › Export Payment History…** writes a CSV (UTF-8 with BOM, ISO dates, plain
+  amounts) for printing or a spreadsheet.
+
 ## Design decisions
 
 * Money is integer cents. Dates are naive local calendar dates.

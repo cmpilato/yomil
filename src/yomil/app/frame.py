@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 from datetime import date, datetime, time, timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import wx
@@ -25,7 +26,7 @@ from yomil.app.tray import TrayIcon, make_icon
 from yomil.core.errors import YomilError
 from yomil.core.formatting import format_date, format_money, quick_pay_amount, summary_text
 from yomil.core.models import AmountKind
-from yomil.services import bills, payments, settings
+from yomil.services import bills, export, payments, settings
 
 if TYPE_CHECKING:
     import sqlite3
@@ -75,7 +76,7 @@ class MainFrame(wx.Frame):
 
     def _build_menus(self) -> None:
         file_menu = wx.Menu()
-        file_menu.Append(_ID_EXPORT, "&Export…")
+        file_menu.Append(_ID_EXPORT, "&Export Payment History…")
         file_menu.AppendSeparator()
         file_menu.Append(wx.ID_EXIT, "E&xit")
 
@@ -92,11 +93,10 @@ class MainFrame(wx.Frame):
         menu_bar.Append(tools_menu, "&Tools")
         self.SetMenuBar(menu_bar)
 
-        menu_bar.Enable(_ID_EXPORT, False)  # not built yet (Phase 7)
-
         self.Bind(wx.EVT_MENU, lambda _evt: self.quit(), id=wx.ID_EXIT)
         self.Bind(wx.EVT_MENU, self._on_manage_bills, id=_ID_MANAGE_BILLS)
         self.Bind(wx.EVT_MENU, self._on_history, id=_ID_HISTORY)
+        self.Bind(wx.EVT_MENU, self._on_export, id=_ID_EXPORT)
         self.Bind(wx.EVT_MENU, self._on_preferences, id=wx.ID_PREFERENCES)
 
     def _build_body(self) -> None:
@@ -243,6 +243,36 @@ class MainFrame(wx.Frame):
         dlg.ShowModal()
         dlg.Destroy()
         self.refresh()  # a payment marked unpaid is back on the list
+
+    def _on_export(self, _event: wx.Event) -> None:
+        dlg = wx.FileDialog(
+            self,
+            "Export Payment History",
+            defaultDir=wx.StandardPaths.Get().GetDocumentsDir(),
+            defaultFile=f"YOMIL payment history {_today().isoformat()}.csv",
+            wildcard="Spreadsheet (CSV) files (*.csv)|*.csv",
+            style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT,
+        )
+        chosen = dlg.ShowModal() == wx.ID_OK
+        path = Path(dlg.GetPath())
+        dlg.Destroy()
+        if not chosen:
+            return
+        if path.suffix.lower() != ".csv":
+            path = path.with_name(path.name + ".csv")
+        try:
+            count = export.write_history_csv(self._conn, path)
+        except OSError as exc:
+            log.exception("Could not export the payment history")
+            self._show_error(f"YOMIL couldn't save the file.\n\n{exc.strerror or exc}")
+            return
+        wx.MessageBox(
+            f"Saved {count} {'payment' if count == 1 else 'payments'} to:\n\n{path}\n\n"
+            "It opens in Excel or any spreadsheet program.",
+            "Export Payment History",
+            wx.OK | wx.ICON_INFORMATION,
+            self,
+        )
 
     def _on_preferences(self, _event: wx.Event) -> None:
         dlg = PreferencesDialog(self, self._conn, money_fmt=self._money_fmt, today=_today())
