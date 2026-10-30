@@ -106,7 +106,7 @@ class EventEditor(wx.Dialog):
             notes = self._add_info(grid, "Bill notes:", series.notes)
             notes.Wrap(self.FromDIP(420))
         if series.url:
-            grid.Add(wx.StaticText(self, label="Pay online:"))
+            grid.Add(wx.StaticText(self, label="Pay online:"), 0, wx.ALIGN_CENTER_VERTICAL)
             if series.url.lower().startswith(("http://", "https://")):
                 link_style = wx.adv.HL_ALIGN_LEFT | wx.adv.HL_CONTEXTMENU | wx.NO_BORDER
                 grid.Add(

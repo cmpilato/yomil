@@ -49,6 +49,7 @@ _WEEKEND_POLICIES = [
     (WeekendPolicy.PREVIOUS_BUSINESS_DAY, "Move it to the Friday before"),
     (WeekendPolicy.NEXT_BUSINESS_DAY, "Move it to the Monday after"),
 ]
+_SUMMARY_WIDTH = 300  # DIPs
 _AMOUNT_KINDS = [
     (AmountKind.FIXED, "The same every time"),
     (AmountKind.ESTIMATED, "About the same each time"),
@@ -87,13 +88,23 @@ class BillEditor(wx.Dialog):
         self._month_day = (form.schedule.month_day, form.first_due)
         self._repeats = [*_REPEATS, _CUSTOM] if form.schedule.repeat is Repeat.CUSTOM else _REPEATS
 
+        # Two columns, wider than tall: the left only as wide as its controls need, the
+        # right taking the rest. Built in reading order (down the left, then down the
+        # right), which is also the tab order.
         gap = self.FromDIP(8)
+        left = wx.BoxSizer(wx.VERTICAL)
+        left.Add(self._build_basics(form, categories), 0, wx.EXPAND | wx.BOTTOM, 2 * gap)
+        left.Add(self._build_schedule(form), 0, wx.EXPAND | wx.BOTTOM, 2 * gap)
+        left.Add(self._build_amount(form), 0, wx.EXPAND)
+        right = wx.BoxSizer(wx.VERTICAL)
+        right.Add(self._build_reminders(form), 0, wx.EXPAND | wx.BOTTOM, 2 * gap)
+        right.Add(self._build_other(form), 1, wx.EXPAND)
+        columns = wx.BoxSizer(wx.HORIZONTAL)
+        columns.Add(left, 0, wx.EXPAND | wx.RIGHT, 2 * gap)
+        columns.Add(right, 1, wx.EXPAND)
+
         sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(self._build_basics(form, categories), 0, wx.EXPAND | wx.ALL, 2 * gap)
-        sizer.Add(self._build_schedule(form), 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 2 * gap)
-        sizer.Add(self._build_reminders(form), 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 2 * gap)
-        sizer.Add(self._build_amount(form), 0, wx.EXPAND | wx.ALL, 2 * gap)
-        sizer.Add(self._build_other(form), 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 2 * gap)
+        sizer.Add(columns, 1, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 2 * gap)
         self._form_msg = wx.StaticText(self)
         sizer.Add(self._form_msg, 0, wx.LEFT | wx.RIGHT | wx.TOP, 2 * gap)
         sizer.Add(self._build_buttons(), 0, wx.EXPAND | wx.ALL, 2 * gap)
@@ -233,7 +244,7 @@ class BillEditor(wx.Dialog):
         box, p = self._section("Other details")
         grid = self._grid()
         grid.AddGrowableRow(2)  # notes
-        self._url = wx.TextCtrl(p, value=form.url)
+        self._url = wx.TextCtrl(p, value=form.url, size=self.FromDIP(wx.Size(280, -1)))
         self._row(grid, p, "Web site for &paying:", self._url)
         self._url_msg = self._message_row(grid, p)
         self._notes = wx.TextCtrl(
@@ -316,14 +327,14 @@ class BillEditor(wx.Dialog):
             until_item.Show(recurring)
         self._until.Enable(self._has_until.GetValue())
         self._amount_label.SetLabel(
-            "E&xpected amount:"
-            if form.amount_kind is AmountKind.FIXED
-            else "E&xpected amount (optional):"
+            "E&xpected amount*:" if form.amount_kind is AmountKind.FIXED else "E&xpected amount:"
         )
 
         self._summary.SetLabel(
-            "\n".join(schedule_summary(form, base=self._base, today=self._today))
+            "\n".join(schedule_summary(form, base=self._base, today=self._today, count=3))
         )
+        # Wrapped to about the fields' width, so the summary never widens the left column.
+        self._summary.Wrap(self.FromDIP(_SUMMARY_WIDTH))
         grow_to_fit(self)
 
     # ---------------------------------------------------------------- actions
