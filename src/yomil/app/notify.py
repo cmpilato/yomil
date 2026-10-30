@@ -70,6 +70,21 @@ class Notifier:
         self._live = [*self._live[-(_KEEP - 1) :], msg]
         return True
 
+    def close(self) -> None:
+        """Take down every notification, before the app exits.
+
+        Where wx draws notifications itself (wxGTK built without libnotify, as the
+        wxPython wheels are), each is a top-level window, hidden but not destroyed once
+        it times out, so a live one would keep the app running after the main window
+        closes. Dropping the last reference lets wx destroy it, once its handlers (which
+        refer back to it) are gone too.
+        """
+        for msg in self._live:
+            msg.Close()
+            msg.Unbind(EVT_NOTIFICATION_MESSAGE_CLICK)
+            msg.Unbind(EVT_NOTIFICATION_MESSAGE_DISMISSED)
+        self._live = []
+
     def _forget(self, msg: wx.adv.NotificationMessage) -> None:
         if msg in self._live:
             self._live.remove(msg)

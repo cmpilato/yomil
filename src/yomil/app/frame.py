@@ -407,12 +407,14 @@ class MainFrame(wx.Frame):
                 break
 
     def quit(self) -> None:
-        self._midnight_timer.Stop()
-        self._reminder_timer.Stop()
-        self._destroy_tray()
+        self._shut_down()
         self.Destroy()
 
-    def _destroy_tray(self) -> None:
+    def _shut_down(self) -> None:
+        """Stop everything that would fire, or keep the app alive, after this window."""
+        self._midnight_timer.Stop()
+        self._reminder_timer.Stop()
+        self._notifier.close()
         if self._tray is not None:
             self._tray.Destroy()
             self._tray = None
@@ -422,7 +424,5 @@ class MainFrame(wx.Frame):
             self.Hide()  # keep running in the tray
             event.Veto()
         else:
-            self._midnight_timer.Stop()
-            self._reminder_timer.Stop()
-            self._destroy_tray()
+            self._shut_down()
             event.Skip()  # let the window (and, being the last one, the app) close
