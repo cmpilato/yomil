@@ -58,6 +58,18 @@ def expand(
     return [dt.date() for dt in found]
 
 
+def next_after(rule: str, dtstart: date, after: date, *, until: date | None = None) -> date | None:
+    """First nominal date of ``rule`` strictly after ``after``, or None if the rule has ended."""
+    rr = rrulestr(rule, dtstart=datetime.combine(dtstart, time.min))
+    found = rr.after(datetime.combine(after, time.min), inc=False)
+    if found is None:
+        return None
+    nominal = found.date()
+    if until is not None and nominal > until:
+        return None
+    return nominal
+
+
 def apply_weekend_policy(nominal: date, policy: WeekendPolicy) -> date:
     """Shift a weekend date to the adjacent business day per ``policy``."""
     if policy is WeekendPolicy.NONE or nominal.weekday() < _SATURDAY:
