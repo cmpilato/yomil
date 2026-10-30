@@ -76,6 +76,26 @@ whatever `--db` names.
 * **File › Export Payment History…** writes a CSV (UTF-8 with BOM, ISO dates, plain
   amounts) for printing or a spreadsheet.
 
+## Packaging (Windows installer)
+
+* **CI:** every push to `main` (and `v*` tags, or *Actions › Installer › Run workflow*)
+  builds `YOMIL-Setup-<version>.exe` on `windows-latest` and attaches it to the run as
+  the `YOMIL-Setup` artifact.
+* **Locally on Windows** (Git Bash, with Inno Setup 6 installed): `make installer`.
+  `make freeze` alone builds the PyInstaller bundle (works on Linux too, for checking the
+  spec) and runs `yomil --self-test` on it, which migrates an in-memory database and checks
+  the bundled files without opening a window.
+* The version comes from `pyproject.toml`; bump it there for each release. The
+  installer's `AppId` in `packaging/yomil.iss` must never change: it's how upgrades find
+  the installed copy.
+* Installs per user (no admin) to `%LOCALAPPDATA%\Programs\YOMIL`; data stays in
+  `%LOCALAPPDATA%\yomil` and the uninstaller never touches it. Upgrades close a running
+  YOMIL first.
+* The installer isn't code-signed, so Windows SmartScreen warns on first run: *More info
+  › Run anyway*.
+* The icon is drawn by `make icon` (`src/yomil/devtools/make_icon.py`) into
+  `src/yomil/app/icons/yomil.ico`, which is committed.
+
 ## Design decisions
 
 * Money is integer cents. Dates are naive local calendar dates.

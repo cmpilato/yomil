@@ -35,6 +35,10 @@ dev = [
     "ruff>=0.5",
     "types-python-dateutil",
 ]
+# Freezing the app for the Windows installer (`make installer`).
+package = [
+    "pyinstaller>=6.11",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/yomil"]
@@ -86,7 +90,7 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 # Subclassing wx classes is unavoidable in the shell, and when wxPython is installed
 # its partial stubs make many calls "untyped".
-module = ["yomil.app.*"]
+module = ["yomil.app.*", "yomil.devtools.make_icon"]
 disallow_subclassing_any = false
 disallow_untyped_calls = false
 

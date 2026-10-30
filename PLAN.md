@@ -362,7 +362,7 @@ Decisions made while implementing:
   1 day before / on the due date. Reminder days set outside YOMIL that the checkboxes
   don't offer are kept, never silently dropped.
 
-### Phase 9: Packaging and installer
+### Phase 9: Packaging and installer — built; Windows manual test pending
 
 * Freeze with PyInstaller (windowed, one-folder). Real app icon to replace the
   drawn placeholder.
@@ -374,6 +374,28 @@ Decisions made while implementing:
     Preferences (`yomil/autostart.py`); the uninstaller removes it.
 * CI job that builds the installer on `windows-latest` and uploads it as an artifact.
 * Version shown in an About box (Help menu).
+
+Decisions made while implementing:
+* **Inno Setup, per-user** (`PrivilegesRequired=lowest`): no admin prompt to install or
+  upgrade, installed under `%LOCALAPPDATA%\Programs\YOMIL`. Fixed `AppId` for
+  upgrade-in-place; upgrades delete the old `_internal` folder and close a running YOMIL
+  first (Restart Manager; YOMIL saves its snapshot on end-of-session).
+* Installer pages: the sign-in task (checked by default, since reminders need YOMIL
+  running), an optional desktop icon, and "Open YOMIL now" at the end. The Start Menu
+  shortcut carries the AppUserModelID for toasts (`YOMIL.YOMIL`). The uninstaller removes
+  the `Run` value even if it was set from Preferences.
+* **Launching YOMIL while it's already running shows the running copy's window**
+  (`yomil/instance.py`, a per-user named pipe). Without this, clicking the Start Menu icon
+  while YOMIL sat in the tray (e.g. after sign-in) did nothing visible.
+* PyInstaller one-folder bundle (`packaging/yomil.spec`), with a hidden `--self-test` flag
+  that CI runs against the frozen app to catch missing data files.
+* The icon (calendar page with a check mark) is drawn in code (`make icon`) at each size
+  and packed into a PNG-based `.ico`; the window uses all sizes, the tray the 32-pixel one
+  under its badge.
+* About box (Help › About YOMIL…): version, plus where the data and log files are, for
+  support.
+* CI builds the installer on pushes to `main`, `v*` tags, and on demand. Unsigned for now
+  (SmartScreen warns once).
 
 ## Open questions
 

@@ -17,7 +17,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import wx
+import wx.adv
 
+from yomil import __version__
 from yomil.app.bill_list import BillListCtrl
 from yomil.app.event_editor import EventEditor, Outcome
 from yomil.app.fonts import set_font_everywhere, ui_font
@@ -25,12 +27,13 @@ from yomil.app.manage_bills import ManageBillsDialog
 from yomil.app.notify import Notifier
 from yomil.app.payment_history import PaymentHistoryDialog
 from yomil.app.preferences import PreferencesDialog
-from yomil.app.tray import TrayIcon, make_icon
+from yomil.app.tray import TrayIcon, app_icons
 from yomil.core.errors import YomilError
 from yomil.core.formatting import format_date, format_money, quick_pay_amount, summary_text
 from yomil.core.models import AmountKind
 from yomil.core.reminders import in_quiet_hours, notices
 from yomil.core.urgency import Urgency
+from yomil.paths import log_dir
 from yomil.services import bills, export, payments, reminders, settings
 
 if TYPE_CHECKING:
@@ -56,14 +59,20 @@ def _today() -> date:
 
 class MainFrame(wx.Frame):
     def __init__(
-        self, conn: sqlite3.Connection, *, money_fmt: MoneyFormat, use_tray: bool = True
+        self,
+        conn: sqlite3.Connection,
+        *,
+        money_fmt: MoneyFormat,
+        use_tray: bool = True,
+        db_path: Path | None = None,
     ) -> None:
         super().__init__(None, title="YOMIL", size=(900, 520))
         self._conn = conn
+        self._db_path = db_path
         self._money_fmt = money_fmt
         self._today = _today()
         self._font_size_applied: tuple[int | None] | None = None
-        self.SetIcon(make_icon())
+        self.SetIcons(app_icons())
         self._tray: TrayIcon | None = TrayIcon(self) if use_tray else None
         self._notifier = Notifier(self, self._tray)
 
@@ -97,10 +106,14 @@ class MainFrame(wx.Frame):
         tools_menu = wx.Menu()
         tools_menu.Append(wx.ID_PREFERENCES, "&Preferences…")
 
+        help_menu = wx.Menu()
+        help_menu.Append(wx.ID_ABOUT, "&About YOMIL…")
+
         menu_bar = wx.MenuBar()
         menu_bar.Append(file_menu, "&File")
         menu_bar.Append(bills_menu, "&Bills")
         menu_bar.Append(tools_menu, "&Tools")
+        menu_bar.Append(help_menu, "&Help")
         self.SetMenuBar(menu_bar)
 
         self.Bind(wx.EVT_MENU, lambda _evt: self.quit(), id=wx.ID_EXIT)
@@ -108,6 +121,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self._on_history, id=_ID_HISTORY)
         self.Bind(wx.EVT_MENU, self._on_export, id=_ID_EXPORT)
         self.Bind(wx.EVT_MENU, self._on_preferences, id=wx.ID_PREFERENCES)
+        self.Bind(wx.EVT_MENU, self._on_about, id=wx.ID_ABOUT)
 
     def _build_body(self) -> None:
         panel = self._panel = wx.Panel(self)
@@ -306,6 +320,18 @@ class MainFrame(wx.Frame):
         dlg.ShowModal()
         dlg.Destroy()
         self.refresh()  # new text size and colors, right away
+
+    def _on_about(self, _event: wx.Event) -> None:
+        info = wx.adv.AboutDialogInfo()
+        info.SetName("YOMIL")
+        info.SetVersion(__version__)
+        info.SetIcon(self.GetIcon())
+        lines = ["Your Obligations, Monitored, Informed, Logged.", "Bill reminders and records."]
+        if self._db_path is not None:
+            lines += ["", f"Your data: {self._db_path.parent}"]
+        lines.append(f"Log files: {log_dir()}")
+        info.SetDescription("\n".join(lines))
+        wx.adv.AboutBox(info, self)
 
     def _on_mark_paid(self, _event: wx.Event) -> None:
         row = self._list.selected_row()

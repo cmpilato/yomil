@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from importlib import resources
 from typing import TYPE_CHECKING
 
 import wx
@@ -33,32 +34,40 @@ def tray_available() -> bool:
         return False
 
 
+def _icon_file() -> str:
+    """The bundled ``.ico`` (drawn by ``yomil.devtools.make_icon``)."""
+    return str(resources.files("yomil.app") / "icons" / "yomil.ico")
+
+
+def app_icons() -> wx.IconBundle:
+    """Every size of the app icon, so Windows can pick the right one for each place."""
+    return wx.IconBundle(_icon_file())
+
+
 def make_icon(badge: int = 0) -> wx.Icon:
-    """Draw a placeholder icon in code so no binary asset is needed yet.
+    """The 32-pixel app icon, for the tray.
 
     ``badge``, if non-zero, is drawn as a number in a red circle (the overdue count): a
     number, not just a color, and repeated in the tooltip.
     """
-    bmp = wx.Bitmap(32, 32)
+    icon = wx.Icon(_icon_file(), wx.BITMAP_TYPE_ICO, 32, 32)
+    if not badge:
+        return icon
+    bmp = wx.Bitmap(icon)
     dc = wx.MemoryDC(bmp)
-    dc.SetBackground(wx.Brush(wx.Colour(30, 100, 190)))
-    dc.Clear()
-    dc.SetBrush(wx.Brush(wx.WHITE))
-    dc.SetPen(wx.TRANSPARENT_PEN)
-    dc.DrawRectangle(8, 6, 16, 20)
-    if badge:
-        dc.SetBrush(wx.Brush(wx.Colour("#B3261E")))
-        dc.SetPen(wx.Pen(wx.WHITE, 2))
-        dc.DrawCircle(21, 21, 10)
-        text = str(badge) if badge < 10 else "9+"
-        dc.SetFont(wx.Font(wx.FontInfo(12 if badge < 10 else 9).Bold()))
-        dc.SetTextForeground(wx.WHITE)
-        extent = dc.GetTextExtent(text)
-        dc.DrawText(text, 21 - extent.width // 2, 21 - extent.height // 2)
+    gc = wx.GraphicsContext.Create(dc)
+    gc.SetBrush(wx.Brush(wx.Colour("#B3261E")))
+    gc.SetPen(gc.CreatePen(wx.GraphicsPenInfo(wx.WHITE).Width(2)))
+    gc.DrawEllipse(11, 11, 20, 20)
+    text = str(badge) if badge < 10 else "9+"
+    gc.SetFont(wx.Font(wx.FontInfo(12 if badge < 10 else 9).Bold()), wx.WHITE)
+    width, height = gc.GetTextExtent(text)
+    gc.DrawText(text, 21 - width / 2, 21 - height / 2)
+    del gc
     dc.SelectObject(wx.NullBitmap)
-    icon = wx.Icon()
-    icon.CopyFromBitmap(bmp)
-    return icon
+    badged = wx.Icon()
+    badged.CopyFromBitmap(bmp)
+    return badged
 
 
 class TrayIcon(wx.adv.TaskBarIcon):

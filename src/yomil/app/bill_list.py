@@ -80,7 +80,7 @@ class BillListCtrl(wx.ListCtrl):
         """How much wider the control must be to show every column without scrolling."""
         columns = sum(self.GetColumnWidth(c) for c in range(self.GetColumnCount()))
         scrollbar = wx.SystemSettings.GetMetric(wx.SYS_VSCROLL_X, self)
-        return max(0, columns + scrollbar - self.GetClientSize().width)
+        return max(0, int(columns + scrollbar - self.GetClientSize().width))
 
     @property
     def rows(self) -> list[BillRow]:

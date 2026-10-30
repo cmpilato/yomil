@@ -1,0 +1,49 @@
+name: Installer
+
+# Builds the Windows installer (dist/YOMIL-Setup-<version>.exe) and uploads it as an
+# artifact. Runs on pushes to main, version tags, and on demand (Actions > Installer >
+# Run workflow).
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+      - run: uv sync --extra gui --group package
+
+      - name: Freeze with PyInstaller
+        run: >
+          uv run pyinstaller --noconfirm --clean
+          --distpath dist/pyinstaller --workpath build/pyinstaller packaging/yomil.spec
+
+      - name: Self-test the frozen app
+        run: |
+          # A windowed .exe returns immediately in PowerShell, so wait for it explicitly.
+          $p = Start-Process dist\pyinstaller\YOMIL\yomil.exe -ArgumentList "--self-test" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Self-test failed with exit code $($p.ExitCode)" }
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build the installer
+        run: |
+          $version = uv run python -c "import yomil; print(yomil.__version__)"
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$version" packaging\yomil.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: YOMIL-Setup
+          path: dist/YOMIL-Setup-*.exe
+          if-no-files-found: error

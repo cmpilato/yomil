@@ -1,7 +1,8 @@
 """Showing reminder notifications (``wx.adv.NotificationMessage``).
 
 On Windows, an installed YOMIL uses native toasts. Those need a Start Menu shortcut with
-an AppUserModelID; wx checks for it, and creates or fixes it if needed. A dev run (not
+an AppUserModelID: the installer creates it (``packaging/yomil.iss``; the names below
+must match), and wx checks it, re-creating or fixing it if needed. A dev run (not
 frozen) uses the tray icon's balloon instead, which Windows 10 and 11 also draw as a
 toast, so no shortcut to ``python.exe`` ends up in the Start Menu. Elsewhere, wx uses
 the desktop's own notifications (libnotify on Linux).
@@ -10,7 +11,9 @@ the desktop's own notifications (libnotify on Linux).
 from __future__ import annotations
 
 import logging
+import os
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import wx
@@ -33,6 +36,10 @@ EVT_NOTIFICATION_MESSAGE_DISMISSED: wx.PyEventBinder[wx.CommandEvent] = wx.PyEve
 
 _KEEP = 20  # notifications kept alive so their click events still arrive
 
+# Must match the installer's Start Menu shortcut (packaging/yomil.iss).
+APP_USER_MODEL_ID = "YOMIL.YOMIL"
+_SHORTCUT = Path("Microsoft", "Windows", "Start Menu", "Programs", "YOMIL.lnk")
+
 
 class Notifier:
     def __init__(self, parent: wx.Window, tray: wx.adv.TaskBarIcon | None) -> None:
@@ -43,7 +50,10 @@ class Notifier:
         toasts = False
         if getattr(sys, "frozen", False):
             try:
-                toasts = bool(wx.adv.NotificationMessage.MSWUseToasts())
+                shortcut = Path(os.environ["APPDATA"]) / _SHORTCUT
+                toasts = bool(
+                    wx.adv.NotificationMessage.MSWUseToasts(str(shortcut), APP_USER_MODEL_ID)
+                )
             except Exception:
                 log.exception("Could not enable toast notifications")
         if not toasts and tray is not None:
