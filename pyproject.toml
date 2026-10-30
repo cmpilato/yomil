@@ -8,7 +8,8 @@ version = "0.1.0"
 description = "A small Windows tray app for recurring bill reminders and manual reconciliation."
 readme = "README.md"
 requires-python = ">=3.12"
-# TODO: choose a license, add a LICENSE file, then add `license = "..."` here.
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     "python-dateutil>=2.9",
     "platformdirs>=4.2",
