@@ -262,12 +262,30 @@ Decisions made while implementing:
 * Display rules are pure, in `core/history.py`. The editors' field-message helpers moved
   to `app/fields.py`; the report lists' font and column sizing to `app/lists.py`.
 
-### Phase 6: Preferences
+### Phase 6: Preferences — built; Windows manual test pending
 
 * Font family and size for the lists, with a live preview. _(open: scale the whole app,
   not just the lists? Probably better for her.)_
 * "Upcoming soon" threshold in days (default 7).
 * Stored in the `setting` table; applied right away without a restart.
+
+Decisions made while implementing:
+* **One text size for the whole app**, not just the lists: lists, labels, fields,
+  buttons, dialogs. Native menus, message boxes, and date-picker popups follow Windows'
+  own text size (Settings › Accessibility › Text size), which is worth raising on her PC
+  too. The setting is now `font_size` (was `list_font_size`).
+* **Size only, as a point-size spinner (8–36)**, no font family: the Windows UI font
+  stays. "Use Windows Size" resets it; saving the Windows size stores nothing, so YOMIL
+  follows Windows if that changes later.
+* How it's applied (`app/fonts.py`): wx hands an explicitly set font to child windows as
+  they're created, but not to dialogs and not to existing children. So every dialog
+  copies its parent's font first thing (`inherit_font`), and the main window re-fonts
+  itself recursively when the setting changes. The list dialogs' starting size scales
+  with the font; dialogs never grow past the screen.
+* The live preview is a real `BillListCtrl` with made-up bills (`core/preferences.py`)
+  plus a sample text field; changing "due soon" recolors it. Nothing applies until
+  **Save**; then the main window refreshes. Cancel with changes asks Save / Don't Save /
+  Keep Editing. Both settings are saved in one transaction (`save_preferences`).
 
 ### Phase 7: Data safety and export
 
@@ -317,7 +335,7 @@ Milestone: **first deployment to her PC** (Phases 1–8).
    later) or warn?~~ Allowed, with an inline note (Phase 3).
 4. ~~**Main-list actions:** add a direct "Mark Paid (today, expected amount)" button for
    the common case?~~ Yes, with a confirm (Phase 2).
-5. **Font scope:** lists only (as sketched) or the whole UI?
+5. ~~**Font scope:** lists only (as sketched) or the whole UI?~~ Whole UI (Phase 6).
 6. **Currency/locale:** USD only?
 7. ~~**History scope:** include skipped payments (proposed yes)? Any filtering?~~ Skipped
    payments included (greyed, labelled); no filtering yet (Phase 5).

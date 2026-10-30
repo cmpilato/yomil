@@ -11,10 +11,11 @@ from typing import TYPE_CHECKING
 import wx
 
 from yomil.app.event_viewer import EventViewer
-from yomil.app.lists import apply_list_font, fit_columns
+from yomil.app.fonts import inherit_font, scale_size_to_font
+from yomil.app.lists import fit_columns
 from yomil.core.history import HISTORY_COLUMNS, history_cells
 from yomil.core.models import OccurrenceStatus
-from yomil.services import bills, payments, settings
+from yomil.services import bills, payments
 
 if TYPE_CHECKING:
     import sqlite3
@@ -43,6 +44,8 @@ class PaymentHistoryDialog(wx.Dialog):
             size=(860, 520),
             style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
         )
+        inherit_font(self, parent)  # before creating any controls
+        scale_size_to_font(self)
         self._conn = conn
         self._money_fmt = money_fmt
         self._today = today
@@ -53,7 +56,6 @@ class PaymentHistoryDialog(wx.Dialog):
         for i, title in enumerate(HISTORY_COLUMNS):
             align = wx.LIST_FORMAT_RIGHT if i == _AMOUNT_COLUMN else wx.LIST_FORMAT_LEFT
             self._list.InsertColumn(i, title, align)
-        apply_list_font(self._list, settings.list_font_size(conn))
         self._empty_text = wx.StaticText(
             self, label="Nothing here yet. Payments you mark paid or skip will be listed here."
         )

@@ -17,8 +17,10 @@ import wx
 
 from yomil.app.bill_list import BillListCtrl
 from yomil.app.event_editor import EventEditor, Outcome
+from yomil.app.fonts import set_font_everywhere, ui_font
 from yomil.app.manage_bills import ManageBillsDialog
 from yomil.app.payment_history import PaymentHistoryDialog
+from yomil.app.preferences import PreferencesDialog
 from yomil.app.tray import TrayIcon, make_icon
 from yomil.core.errors import YomilError
 from yomil.core.formatting import format_date, format_money, quick_pay_amount, summary_text
@@ -53,6 +55,7 @@ class MainFrame(wx.Frame):
         self._conn = conn
         self._money_fmt = money_fmt
         self._today = _today()
+        self._font_size_applied: tuple[int | None] | None = None
         self.SetIcon(make_icon())
         self._tray: TrayIcon | None = TrayIcon(self) if use_tray else None
 
@@ -89,13 +92,12 @@ class MainFrame(wx.Frame):
         menu_bar.Append(tools_menu, "&Tools")
         self.SetMenuBar(menu_bar)
 
-        # Not built yet (Phases 6-7).
-        for item_id in (_ID_EXPORT, wx.ID_PREFERENCES):
-            menu_bar.Enable(item_id, False)
+        menu_bar.Enable(_ID_EXPORT, False)  # not built yet (Phase 7)
 
         self.Bind(wx.EVT_MENU, lambda _evt: self.quit(), id=wx.ID_EXIT)
         self.Bind(wx.EVT_MENU, self._on_manage_bills, id=_ID_MANAGE_BILLS)
         self.Bind(wx.EVT_MENU, self._on_history, id=_ID_HISTORY)
+        self.Bind(wx.EVT_MENU, self._on_preferences, id=wx.ID_PREFERENCES)
 
     def _build_body(self) -> None:
         panel = self._panel = wx.Panel(self)
@@ -148,13 +150,13 @@ class MainFrame(wx.Frame):
             payments.materialize(self._conn, self._today)
             rows = payments.main_list(self._conn, self._today)
             any_bills = any(s.active for s in bills.list_all(self._conn))
-            font_size = settings.list_font_size(self._conn)
+            font_size = settings.font_size(self._conn)
         except Exception:
             log.exception("Could not load the bill list")
             self._show_error("YOMIL could not load your bills. Details are in the log file.")
             return
 
-        self._list.apply_font(font_size)
+        self._apply_font_size(font_size)
         self._list.set_rows(rows, self._today)
         self._grow_to_fit_list()
         self.SetStatusText(summary_text(rows))
@@ -172,6 +174,16 @@ class MainFrame(wx.Frame):
             self._book.SetSelection(_PAGE_EMPTY)
             self._book.GetPage(_PAGE_EMPTY).Layout()
         self._update_buttons()
+
+    def _apply_font_size(self, points: int | None) -> None:
+        """Re-font the whole window if her text size changed (it starts out unset)."""
+        if self._font_size_applied == (points,):
+            return
+        self._font_size_applied = (points,)
+        font = ui_font(points)
+        set_font_everywhere(self, font)
+        self._list.apply_font(font)
+        self._panel.Layout()
 
     def _grow_to_fit_list(self) -> None:
         """Widen the window (never past the screen) so large fonts don't need scrolling."""
@@ -231,6 +243,12 @@ class MainFrame(wx.Frame):
         dlg.ShowModal()
         dlg.Destroy()
         self.refresh()  # a payment marked unpaid is back on the list
+
+    def _on_preferences(self, _event: wx.Event) -> None:
+        dlg = PreferencesDialog(self, self._conn, money_fmt=self._money_fmt, today=_today())
+        dlg.ShowModal()
+        dlg.Destroy()
+        self.refresh()  # new text size and colors, right away
 
     def _on_mark_paid(self, _event: wx.Event) -> None:
         row = self._list.selected_row()

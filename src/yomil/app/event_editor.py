@@ -15,6 +15,7 @@ import wx.adv
 
 from yomil.app.dates import from_wx, to_wx
 from yomil.app.fields import grow_to_fit, show_message
+from yomil.app.fonts import inherit_font
 from yomil.core.errors import ValidationError, YomilError
 from yomil.core.formatting import (
     format_date,
@@ -59,6 +60,7 @@ class EventEditor(wx.Dialog):
             title=f"Payment: {row.series.payee}",
             style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
         )
+        inherit_font(self, parent)  # before creating any controls
         assert row.occurrence.id is not None
         self.outcome: Outcome | None = None
         self._conn = conn

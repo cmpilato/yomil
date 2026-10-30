@@ -69,13 +69,8 @@ class BillListCtrl(wx.ListCtrl):
         self._fit_columns()
         self.Refresh()
 
-    def apply_font(self, points: int | None) -> None:
-        """Use ``points`` (or the system default size) for the rows and headers."""
-        font = wx.SystemSettings.GetFont(wx.SYS_DEFAULT_GUI_FONT)
-        if points is not None:
-            font.SetPointSize(points)
-        if font == self.GetFont():
-            return
+    def apply_font(self, font: wx.Font) -> None:
+        """Use ``font`` for the rows and headers, including the bold overdue rows."""
         self.SetFont(font)
         self._build_attrs()
         self._fit_columns()

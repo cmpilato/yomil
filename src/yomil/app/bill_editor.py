@@ -14,6 +14,7 @@ import wx.adv
 
 from yomil.app.dates import from_wx, to_wx
 from yomil.app.fields import grow_to_fit, show_message
+from yomil.app.fonts import inherit_font
 from yomil.core.bill_form import (
     BillFormInput,
     Field,
@@ -68,6 +69,7 @@ class BillEditor(wx.Dialog):
     ) -> None:
         title = "Add a Bill" if base is None else f"Edit Bill: {base.payee}"
         super().__init__(parent, title=title, style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        inherit_font(self, parent)  # before creating any controls
         self.saved: Series | None = None
         self._conn = conn
         self._base = base

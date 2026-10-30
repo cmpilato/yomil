@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 import wx
 
 from yomil.app.fields import grow_to_fit
+from yomil.app.fonts import inherit_font
 from yomil.app.payment_editor import PaymentEditor
 from yomil.core.errors import YomilError
 from yomil.core.history import bill_name, payment_details, unresolve_question
@@ -37,6 +38,7 @@ class EventViewer(wx.Dialog):
         today: date,
     ) -> None:
         super().__init__(parent, style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        inherit_font(self, parent)  # before creating any controls
         self._conn = conn
         self._occ_id = occurrence_id
         self._money_fmt = money_fmt

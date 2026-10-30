@@ -43,8 +43,8 @@ Run the app: `make run`, or `uv run --extra gui python -m yomil`.
 Sample data: `make seed` builds `scratch/seed.sqlite3` (bills with history, overdue
 payments, and edge cases, relative to today); `make run-seed` runs the app against it.
 Useful flags: `--minimized` (start hidden in the tray), `--no-tray`, `--db PATH`.
-To try a large list font before Phase 6's Preferences exist:
-`uv run python -c "from yomil.storage import db; from yomil.services import settings; settings.set_list_font_size(db.connect('scratch/seed.sqlite3'), 18)"`
+To set the text size without opening Tools › Preferences:
+`uv run python -c "from yomil.storage import db; from yomil.services import settings; settings.set_font_size(db.connect('scratch/seed.sqlite3'), 18)"`
 (pass `None` to go back to the system size).
 
 Target platform is Windows; development happens on Linux. The tray icon, toasts, and

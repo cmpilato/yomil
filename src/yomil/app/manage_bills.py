@@ -11,11 +11,12 @@ from typing import TYPE_CHECKING
 import wx
 
 from yomil.app.bill_editor import BillEditor
-from yomil.app.lists import apply_list_font, fit_columns
+from yomil.app.fonts import inherit_font, scale_size_to_font
+from yomil.app.lists import fit_columns
 from yomil.core.errors import YomilError
 from yomil.core.formatting import format_amount, format_date
 from yomil.core.schedule import describe, parse_schedule
-from yomil.services import bills, payments, settings
+from yomil.services import bills, payments
 
 if TYPE_CHECKING:
     import sqlite3
@@ -43,6 +44,8 @@ class ManageBillsDialog(wx.Dialog):
             size=(860, 460),
             style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
         )
+        inherit_font(self, parent)  # before creating any controls
+        scale_size_to_font(self)
         self._conn = conn
         self._money_fmt = money_fmt
         self._today = today
@@ -51,7 +54,6 @@ class ManageBillsDialog(wx.Dialog):
         self._list = wx.ListCtrl(self, style=wx.LC_REPORT | wx.LC_SINGLE_SEL | wx.LC_HRULES)
         for i, title in enumerate(COLUMNS):
             self._list.InsertColumn(i, title)
-        apply_list_font(self._list, settings.list_font_size(conn))
 
         self._add = wx.Button(self, label="&Add…")
         self._edit = wx.Button(self, label="&Edit…")

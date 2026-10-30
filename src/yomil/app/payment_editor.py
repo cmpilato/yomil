@@ -12,6 +12,7 @@ import wx.adv
 
 from yomil.app.dates import from_wx, to_wx
 from yomil.app.fields import grow_to_fit, show_message
+from yomil.app.fonts import inherit_font
 from yomil.core.errors import ValidationError, YomilError
 from yomil.core.formatting import format_date, format_money_for_entry
 from yomil.core.history import bill_name
@@ -43,6 +44,7 @@ class PaymentEditor(wx.Dialog):
         super().__init__(
             parent, title=f"Edit Payment: {name}", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER
         )
+        inherit_font(self, parent)  # before creating any controls
         assert occ.id is not None
         assert occ.paid_date is not None
         self._conn = conn
