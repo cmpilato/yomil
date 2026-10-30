@@ -84,7 +84,7 @@ class PaymentHistoryDialog(wx.Dialog):
 
     def _reload(self, *, select_id: int | None = None, fallback_index: int = 0) -> None:
         """Rebuild the list, selecting payment ``select_id`` or, if it's gone, the row now
-        at ``fallback_index`` (so after marking one unpaid she carries on from there).
+        at ``fallback_index`` (so after marking one unpaid, the user carries on from there).
         """
         self._payments = payments.history(self._conn)
         series = {s.id: s for s in bills.list_all(self._conn)}

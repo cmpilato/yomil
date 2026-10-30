@@ -1,4 +1,4 @@
-"""What the Preferences dialog shows while she tries settings out. Pure."""
+"""What the Preferences dialog shows while the user tries settings out. Pure."""
 
 from __future__ import annotations
 

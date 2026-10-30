@@ -68,9 +68,9 @@ whatever `--db` names.
   `--snapshot-policy=auto` (VSS) so the live file is copied consistently too; even
   without it, the `snapshot` copy is always intact.
 * **Startup check:** YOMIL runs `PRAGMA quick_check` before opening the database. If it
-  fails, she's offered the snapshot (if that passes the check too); the damaged file is
+  fails, the user is offered the snapshot (if that passes the check too); the damaged file is
   kept as `yomil-damaged-<timestamp>.sqlite3`, never deleted.
-* **Debugging her data:** SQLite files are portable across machines. Copy her snapshot
+* **Debugging a user's data:** SQLite files are portable across machines. Copy their snapshot
   (or the main file while YOMIL is closed) and run `yomil --db <file>`. Point `--db` at a
   copy: the snapshot is written beside whatever file you open.
 * **File › Export Payment History…** writes a CSV (UTF-8 with BOM, ISO dates, plain

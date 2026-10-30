@@ -1,7 +1,7 @@
 """Event Editor: work on one pending payment (save, mark paid, or skip).
 
 All field rules live in ``core.payment_form``; this dialog shows its messages next to the
-fields as she types, so nothing pops up an error box for a typo.
+fields while the user types, so nothing pops up an error box for a typo.
 """
 
 from __future__ import annotations

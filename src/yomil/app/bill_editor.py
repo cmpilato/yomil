@@ -2,7 +2,7 @@
 
 The schedule is "how often" plus a first due date; the day it falls on comes from that
 date (see ``core.schedule``). All rules live in ``core.bill_form``. Messages appear next
-to a field once she has touched it, or for every field after she tries to save.
+to a field once it has been touched, or for every field after a save attempt.
 """
 
 from __future__ import annotations

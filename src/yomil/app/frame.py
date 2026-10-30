@@ -142,7 +142,7 @@ class MainFrame(wx.Frame):
         """Rebuild the list for today.
 
         Keeps the same bill selected, or with ``select_index``, whatever row is now at
-        that position (after paying a bill, so she can carry on down the list).
+        that position (after paying a bill, so the user can carry on down the list).
         """
         previous = self._list.selected_row()
         self._today = _today()
@@ -176,7 +176,7 @@ class MainFrame(wx.Frame):
         self._update_buttons()
 
     def _apply_font_size(self, points: int | None) -> None:
-        """Re-font the whole window if her text size changed (it starts out unset)."""
+        """Re-font the whole window if the text size setting changed (it starts out unset)."""
         if self._font_size_applied == (points,):
             return
         self._font_size_applied = (points,)
@@ -326,7 +326,7 @@ class MainFrame(wx.Frame):
         event.Skip()
 
     def _on_activate(self, event: wx.ActivateEvent) -> None:
-        # Catches a missed midnight (e.g. the PC was asleep) as soon as she comes back.
+        # Catches a missed midnight (e.g. the PC was asleep) as soon as the user comes back.
         if event.GetActive() and _today() != self._today:
             wx.CallAfter(self.refresh)
         event.Skip()

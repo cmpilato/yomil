@@ -33,7 +33,7 @@ class PaymentCheck:
 def check_payment(
     amount_text: str, paid_date: date, today: date, fmt: MoneyFormat = USD
 ) -> PaymentCheck:
-    """Parse the amount and comment on anything she might want to look at again."""
+    """Parse the amount and comment on anything worth a second look."""
     paid_msg = None
     if paid_date > today:
         paid_msg = FieldMessage("That date is in the future. Is that right?", is_error=False)

@@ -54,7 +54,7 @@ def update(
 ) -> Series:
     """Save edits to a bill.
 
-    If the schedule or expected amount changed, future pending payments that she hasn't
+    If the schedule or expected amount changed, future pending payments that haven't been
     moved by hand are brought in line with it. Use :func:`retire` / :func:`reactivate`
     to change ``active``.
     """

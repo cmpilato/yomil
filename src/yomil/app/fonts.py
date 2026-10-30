@@ -1,4 +1,4 @@
-"""Her text size, applied to every window YOMIL draws.
+"""The user's text size, applied to every window YOMIL draws.
 
 wx passes an explicitly set font down to child windows as they're *created*, but not to
 top-level windows (dialogs) and not to children that already exist. So:

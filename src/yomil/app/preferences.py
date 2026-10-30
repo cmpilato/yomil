@@ -1,7 +1,7 @@
-"""Preferences: her text size and the "due soon" window, with a live preview.
+"""Preferences: the text size and the "due soon" window, with a live preview.
 
 The preview is a real bill list (with made-up bills from ``core.preferences``) and a
-sample field, so what she sees is exactly what she'll get. Nothing changes until Save;
+sample field, so what the user sees is exactly what they'll get. Nothing changes until Save;
 then the main window applies it right away and every dialog opened after uses it.
 """
 
@@ -177,7 +177,7 @@ class PreferencesDialog(wx.Dialog):
         try:
             settings.save_preferences(
                 self._conn,
-                # Her size, or None to follow Windows if she picked its size.
+                # The chosen size, or None to follow Windows if that's the size picked.
                 font_size=None if points == self._default_size else points,
                 upcoming_threshold_days=threshold,
             )

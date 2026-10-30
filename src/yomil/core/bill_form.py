@@ -90,7 +90,7 @@ def check_bill(
 ) -> BillCheck:
     """Build the bill ``form`` describes: new if ``base`` is None, else an edit of ``base``.
 
-    ``other_payees`` are the names of her other bills, to point out a likely duplicate.
+    ``other_payees`` are the names of the user's other bills, to point out a likely duplicate.
     """
     messages: dict[Field, FieldMessage] = {}
 

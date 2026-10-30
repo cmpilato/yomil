@@ -1,4 +1,4 @@
-"""Keeping her data safe while YOMIL runs, and recovering it if it's damaged at startup.
+"""Keeping the data safe while YOMIL runs, and recovering it if it's damaged at startup.
 
 * :class:`SnapshotKeeper` refreshes the safety snapshot (``storage.snapshot``) within a
   couple of seconds of any change. It watches SQLite's change counter rather than
@@ -66,7 +66,7 @@ class SnapshotKeeper(wx.Timer):
 def check_and_recover(db_path: Path) -> bool:
     """Check the database before use. Returns False if YOMIL should quit.
 
-    A damaged database is replaced by the snapshot only if she agrees and the snapshot
+    A damaged database is replaced by the snapshot only if the user agrees and the snapshot
     itself is intact; the damaged file is always kept.
     """
     if not db_path.exists() or is_intact(db_path):

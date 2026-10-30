@@ -60,7 +60,7 @@ def format_money(cents: int, fmt: MoneyFormat = USD) -> str:
 
 
 def format_money_for_entry(cents: int, fmt: MoneyFormat = USD) -> str:
-    """``123456`` -> ``"1234.56"``: what goes in an amount field for her to edit."""
+    """``123456`` -> ``"1234.56"``: what goes in an amount field to edit."""
     units, frac = divmod(cents, 100)
     return f"{units}{fmt.decimal_point}{frac:02d}"
 
@@ -100,7 +100,7 @@ def format_date(d: date) -> str:
 
 
 def format_date_time(dt: datetime) -> str:
-    """``"Tue Mar 3, 2026 at 3:05 PM"`` (12-hour clock, as she'd say it)."""
+    """``"Tue Mar 3, 2026 at 3:05 PM"`` (12-hour clock, as people say it)."""
     hour = dt.hour % 12 or 12
     return f"{format_date(dt)} at {hour}:{dt.minute:02d} {'AM' if dt.hour < 12 else 'PM'}"
 

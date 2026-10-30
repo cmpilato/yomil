@@ -2,7 +2,7 @@
 
 Materialization rule: an active series has a row for every instance from ``dtstart``
 through today, and then for each following instance up to and including the first one
-that is still unresolved. Normally that is just "the next one after today", but if she
+that is still unresolved. Normally that is just "the next one after today", but if the user
 pays ahead, the next instance after that appears, so a bill never vanishes from the
 main list while its schedule continues.
 
@@ -89,7 +89,7 @@ def plan_regeneration(series: Series, existing: Iterable[Occurrence], today: dat
     """Bring regenerable rows in line with an edited ``series``.
 
     Rows whose nominal date the new schedule still produces are updated in place (so a
-    note she left on them survives); the rest are deleted.
+    note left on them survives); the rest are deleted.
     """
     candidates = sorted(
         (o for o in existing if is_regenerable(o, today)), key=lambda o: o.nominal_date

@@ -2,14 +2,13 @@
 
 Status: **draft for iteration.** Edit freely; decisions marked _(open)_ are not settled.
 
-This plan turns the original UI sketch ("YOMIL - Bill Payment Tracker for Your Old
-Mother-in-Law") into phased work on top of the existing scaffold (see
+This plan turns the original UI sketch into phased work on top of the existing scaffold (see
 [DEVELOPING.md](./DEVELOPING.md) for layout and design rules).
 
 ## Who it's for
 
-One elderly, non-technical user on her own Windows PC. She does everything herself:
-sets up her bills, reconciles them, and checks history. That drives these
+An older, non-technical user on their own Windows PC, who does everything themselves:
+sets up their bills, reconciles them, and checks history. That drives these
 requirements throughout:
 
 * Large, configurable fonts. Status is never shown by color alone (text and/or icon too).
@@ -17,7 +16,7 @@ requirements throughout:
   button and responds to Enter.
 * Forgiving: confirm destructive actions, warn on unsaved changes, and make every
   mistake reversible (un-reconcile, edit history). Every change goes to the audit log.
-* Installs like a normal Windows program. She never sees Python.
+* Installs like a normal Windows program. The user never sees Python.
 
 ## Development constraints
 
@@ -154,8 +153,8 @@ Decisions made while implementing:
   the C runtime locale under it). USD if the locale has none.
 * **Mark Paid** is disabled when there's no expected amount; for estimated and variable
   bills the confirm says it's the expected amount and points to Open….
-* After Mark Paid, the selection stays at the same row position (she works down the
-  list). Other refreshes keep the same bill selected.
+* After Mark Paid, the selection stays at the same row position (the user works down
+  the list). Other refreshes keep the same bill selected.
 * Refresh also happens on window activation if the date changed (catches a missed
   midnight timer after sleep).
 * A status bar shows "2 bills overdue, 1 due soon" (one more non-color cue).
@@ -199,12 +198,12 @@ Decisions made while implementing:
 
 * List of all bills (active first; retired shown greyed). Buttons: Add, Edit, Retire /
   Reactivate, Delete. Delete is allowed only if the bill has no paid history (matches
-  `ON DELETE RESTRICT`); otherwise she's offered Retire.
+  `ON DELETE RESTRICT`); otherwise Retire is offered instead.
 * Bill editor with a friendly schedule picker. No raw RRULEs:
   One time · Every N weeks on <weekday> · Every N months on day D (uses
   `monthly_on_day`) · Yearly on <date>. Plus first due date, optional end date, weekend
   policy, amount kind and expected amount, autopay, URL, notes, category.
-* Live preview: "Next 5 due dates: …" so she can check the schedule before saving.
+* Live preview: "Next 5 due dates: …" so the user can check the schedule before saving.
 * `lead_days` is hidden until Phase 9 ships notifications.
 
 Decisions made while implementing:
@@ -216,8 +215,8 @@ Decisions made while implementing:
   described in words ("Every 3 months on the 3rd"), so the first due date is always a
   real occurrence. dateutil silently drops a `dtstart` that doesn't match its rule.
 * Rules are parsed back only if the picker would write *exactly* that rule; anything
-  else is shown as "Custom (set up outside YOMIL)" and kept untouched unless she picks
-  a new schedule. So opening and saving a bill never rewrites its rule (tested).
+  else is shown as "Custom (set up outside YOMIL)" and kept untouched unless a new
+  schedule is picked. So opening and saving a bill never rewrites its rule (tested).
 * Month-end: a first due date on the 29th–31st means "or the last day of shorter
   months". A monthly bill whose first due date is a *clamped* month-end (e.g. "the
   31st", first due April 30) keeps its day as `Schedule.month_day` until the first due
@@ -246,9 +245,9 @@ Decisions made while implementing:
 
 Decisions made while implementing:
 * Payment History is the "check register": the one place to browse past payments. No
-  filtering or search yet; add it if she asks.
+  filtering or search yet; add it if users ask.
 * **The Event Viewer does not show `event_log`.** The audit trail keeps recording every
-  change, but it's for debugging and deep auditing, not for her. (Export could expose it
+  change, but it's for debugging and deep auditing, not for everyday use. (Export could expose it
   later.)
 * Plain words instead of "un-reconcile": **Mark Unpaid…** for paid payments, **Undo
   Skip…** for skipped ones (which have no Edit…). The confirmation warns when the bill
@@ -265,15 +264,15 @@ Decisions made while implementing:
 ### Phase 6: Preferences — built; Windows manual test pending
 
 * Font family and size for the lists, with a live preview. _(open: scale the whole app,
-  not just the lists? Probably better for her.)_
+  not just the lists? Probably better for the user.)_
 * "Upcoming soon" threshold in days (default 7).
 * Stored in the `setting` table; applied right away without a restart.
 
 Decisions made while implementing:
 * **One text size for the whole app**, not just the lists: lists, labels, fields,
   buttons, dialogs. Native menus, message boxes, and date-picker popups follow Windows'
-  own text size (Settings › Accessibility › Text size), which is worth raising on her PC
-  too. The setting is now `font_size` (was `list_font_size`).
+  own text size (Settings › Accessibility › Text size), which is worth raising on the
+  user's PC too. The setting is now `font_size` (was `list_font_size`).
 * **Size only, as a point-size spinner (8–36)**, no font family: the Windows UI font
   stays. "Use Windows Size" resets it; saving the Windows size stores nothing, so YOMIL
   follows Windows if that changes later.
@@ -297,7 +296,7 @@ Decisions made while implementing:
   `--snapshot-policy=auto` (VSS).
 * **File › Export…:** (a) a full database copy via the backup API, which opens directly
   with `yomil --db <file>` for debugging on another machine; (b) a CSV of payment
-  history she can print or hand to someone.
+  history to print or hand to someone.
 * Startup integrity check (`PRAGMA quick_check`); if it fails, a clear message
   pointing to the snapshot.
 
@@ -307,16 +306,16 @@ Decisions made while implementing:
   and at exit. Nothing else in the app has to remember to call it. A failed write (e.g.
   the file is held open) is logged once and retried on the next tick.
 * The snapshot lives beside whichever database is open (`<db folder>/snapshot/`), so
-  `--db` debugging sessions never overwrite her snapshot.
+  `--db` debugging sessions never overwrite the user's snapshot.
 * **No full-database export:** SQLite files are portable, and the snapshot is already a
   consistent copy, so File has just **Export Payment History…** (CSV: UTF-8 with BOM for
   Excel, ISO dates, plain `1234.56` amounts, skipped payments included, defaulting to
-  her Documents folder with a dated name).
-* **Damaged at startup:** if the snapshot passes its own check, she's offered
+  the Documents folder with a dated name).
+* **Damaged at startup:** if the snapshot passes its own check, the user is offered
   **Restore Safety Copy** / **Quit**, with the copy's date and time. Restoring renames the
   damaged file (and its `-journal`, which SQLite would otherwise replay into the
-  restored file) to `yomil-damaged-<timestamp>.sqlite3`. With no usable snapshot, she's
-  told not to use YOMIL until someone looks at it, and it quits.
+  restored file) to `yomil-damaged-<timestamp>.sqlite3`. With no usable snapshot, the
+  user is told not to use YOMIL until someone looks at it, and it quits.
 * The integrity check opens the file read-write on purpose: after a crash mid-commit,
   rolling back the leftover journal is normal recovery, not damage (tested).
 * Data folder, backups, and debugging are documented in DEVELOPING.md.
@@ -332,7 +331,7 @@ Milestone: **safe to hold real data.**
 * CI job that builds the installer on `windows-latest` and uploads it as an artifact.
 * Version shown in an About box (Help menu).
 
-Milestone: **first deployment to her PC** (Phases 1–8).
+Milestone: **first real-world deployment** (Phases 1–8).
 
 ### Phase 9: Notifications and run-at-login
 
@@ -347,7 +346,7 @@ Milestone: **first deployment to her PC** (Phases 1–8).
 ## Open questions
 
 1. **Autopay bills:** show them, but reconcile automatically on the due date? Or still
-   require her to confirm? Or hide them?
+   require the user to confirm? Or hide them?
 2. ~~**Save vs. Mark Paid:** should "Save" also keep a half-entered paid date and amount
    as a draft, or only due date and note (current proposal)?~~ Due date and note only
    (Phase 3).
