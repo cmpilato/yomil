@@ -322,18 +322,7 @@ Decisions made while implementing:
 
 Milestone: **safe to hold real data.**
 
-### Phase 8: Packaging and installer
-
-* Freeze with PyInstaller (windowed, one-folder). Real app icon to replace the
-  drawn placeholder.
-* Installer (Inno Setup or similar): Start Menu and optional desktop shortcut,
-  uninstaller that **never** deletes the data dir, and upgrade-in-place.
-* CI job that builds the installer on `windows-latest` and uploads it as an artifact.
-* Version shown in an About box (Help menu).
-
-Milestone: **first real-world deployment** (Phases 1–8).
-
-### Phase 9: Notifications and run-at-login
+### Phase 8: Notifications and run-at-login — built; Windows manual test pending
 
 * Windows toast notifications at each bill's `lead_days` before its due date, and for
   overdue payments. Clicking one opens the app on that payment. Fired at most once per
@@ -342,6 +331,49 @@ Milestone: **first real-world deployment** (Phases 1–8).
 * Run-at-login option (installer checkbox plus a Preferences toggle), launching with
   `--minimized`.
 * Expose `lead_days` in the bill editor.
+
+Decisions made while implementing:
+* **Reminder rules** (`core/reminders.py`): each bill's reminders are about its oldest
+  unpaid payment. One reminder at the most specific reminder day reached, so missed
+  days (PC off) don't produce a backlog. **Overdue: once a day** until resolved. A bill
+  with no reminder days gets none, overdue or not. Three or more at once become a
+  single notice ("6 bills need attention…"); clicking a notice opens the main window
+  with that bill selected.
+* Sent reminders are remembered in a `reminder_sent` table (migration 0003, keyed by
+  occurrence and reminder day, cascading when a payment is deleted). Not in
+  `event_log`: showing a reminder changes no data.
+* **Quiet hours** (a default, not in the original plan): nothing between 9 PM and
+  8 AM. The check runs on every refresh and every 15 minutes, so the midnight refresh's
+  reminders appear in the morning instead of unseen overnight.
+* **`wx.adv.NotificationMessage`**, no new dependency; same toast API on Windows 10 and
+  11. A frozen build calls `MSWUseToasts()` (wx checks or creates the Start Menu
+  shortcut with an AppUserModelID); dev runs use the tray icon's balloon, which
+  Windows draws as a toast too. wxPython lacks the event binders; `app/notify.py` makes
+  them. Works with libnotify on Linux.
+* **Tray:** tooltip "YOMIL: 2 bills overdue, 1 due soon"; the icon gets a red badge
+  with the overdue count (a number, not just a color).
+* **Run at sign-in:** a per-user `HKCU\…\CurrentVersion\Run` value named `YOMIL`
+  (`yomil/autostart.py`, stdlib `winreg`), running `yomil.exe --minimized` (or, from a
+  dev checkout, `pythonw.exe -m yomil --minimized`). Preferences shows the checkbox
+  on Windows only.
+* **Preferences** gained a Reminders section: show reminders on/off (setting
+  `reminders_enabled`) and start at sign-in.
+* **Bill editor** gained a Reminders row: checkboxes for 2 weeks / 1 week / 3 days /
+  1 day before / on the due date. Reminder days set outside YOMIL that the checkboxes
+  don't offer are kept, never silently dropped.
+
+### Phase 9: Packaging and installer
+
+* Freeze with PyInstaller (windowed, one-folder). Real app icon to replace the
+  drawn placeholder.
+* Installer (Inno Setup or similar): Start Menu and optional desktop shortcut,
+  uninstaller that **never** deletes the data dir, and upgrade-in-place.
+  * The Start Menu shortcut should carry the AppUserModelID that toasts use (see
+    Phase 8), so wx doesn't have to create its own.
+  * A "Start YOMIL when I sign in" checkbox writes the same `Run` value as
+    Preferences (`yomil/autostart.py`); the uninstaller removes it.
+* CI job that builds the installer on `windows-latest` and uploads it as an artifact.
+* Version shown in an About box (Help menu).
 
 ## Open questions
 

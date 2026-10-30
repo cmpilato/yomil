@@ -16,6 +16,9 @@ if TYPE_CHECKING:
     from datetime import date, datetime
 
 
+DEFAULT_LEAD_DAYS = (7, 3, 0)  # remind a week before, 3 days before, and on the day
+
+
 class AmountKind(enum.StrEnum):
     FIXED = "fixed"
     ESTIMATED = "estimated"
@@ -48,7 +51,7 @@ class Series:
     expected_amount_cents: int | None = None
     until: date | None = None
     weekend_policy: WeekendPolicy = WeekendPolicy.NONE
-    lead_days: tuple[int, ...] = (7, 3, 0)
+    lead_days: tuple[int, ...] = DEFAULT_LEAD_DAYS
     autopay: bool = False
     category: str | None = None
     url: str | None = None

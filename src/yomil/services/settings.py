@@ -61,8 +61,24 @@ def set_font_size(conn: sqlite3.Connection, points: int | None) -> None:
         settings_repo.put(conn, FONT_SIZE, str(_check_font_size(points)))
 
 
+REMINDERS_ENABLED = "reminders_enabled"
+
+
+def reminders_enabled(conn: sqlite3.Connection) -> bool:
+    """Whether to show reminder notifications (on unless turned off)."""
+    return settings_repo.get(conn, REMINDERS_ENABLED) != "0"
+
+
+def set_reminders_enabled(conn: sqlite3.Connection, enabled: bool) -> None:
+    settings_repo.put(conn, REMINDERS_ENABLED, "1" if enabled else "0")
+
+
 def save_preferences(
-    conn: sqlite3.Connection, *, font_size: int | None, upcoming_threshold_days: int
+    conn: sqlite3.Connection,
+    *,
+    font_size: int | None,
+    upcoming_threshold_days: int,
+    reminders_enabled: bool = True,
 ) -> None:
     """Save the Preferences dialog: all or nothing."""
     if font_size is not None:
@@ -71,6 +87,7 @@ def save_preferences(
     with transaction(conn):
         set_font_size(conn, font_size)
         set_upcoming_threshold_days(conn, upcoming_threshold_days)
+        set_reminders_enabled(conn, reminders_enabled)
 
 
 def _check_font_size(points: int) -> int:

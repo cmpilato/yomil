@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from yomil.core.errors import ValidationError
 from yomil.core.formatting import USD, format_money_for_entry, parse_money
 from yomil.core.forms import FieldMessage
-from yomil.core.models import AmountKind, Series, WeekendPolicy
+from yomil.core.models import DEFAULT_LEAD_DAYS, AmountKind, Series, WeekendPolicy
 from yomil.core.schedule import Repeat, Schedule, describe, parse_schedule, preview
 from yomil.core.validation import validate_series
 
@@ -49,6 +49,7 @@ class BillFormInput:
     category: str = ""
     url: str = ""
     notes: str = ""
+    lead_days: tuple[int, ...] = DEFAULT_LEAD_DAYS
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,6 +79,7 @@ def form_from_series(s: Series, fmt: MoneyFormat = USD) -> BillFormInput:
         category=s.category or "",
         url=s.url or "",
         notes=s.notes or "",
+        lead_days=s.lead_days,
     )
 
 
@@ -135,7 +137,7 @@ def check_bill(
     if any(m.is_error for m in messages.values()):
         return BillCheck(None, messages)
 
-    # Edits keep what the form doesn't show (id, active, reminder days).
+    # Edits keep what the form doesn't show (id, active).
     template = base or Series(id=None, payee="", rrule="", dtstart=form.first_due)
     series = replace(
         template,
@@ -150,6 +152,7 @@ def check_bill(
         category=form.category.strip() or None,
         url=url,
         notes=form.notes.strip() or None,
+        lead_days=form.lead_days,
     )
     try:
         validate_series(series)  # the services check again; this catches anything missed

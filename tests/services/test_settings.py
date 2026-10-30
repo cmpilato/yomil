@@ -61,3 +61,11 @@ def test_save_preferences_is_all_or_nothing(conn: sqlite3.Connection) -> None:
     with pytest.raises(ValidationError):
         settings.save_preferences(conn, font_size=20, upcoming_threshold_days=-1)
     assert settings.font_size(conn) is None
+
+
+def test_reminders_enabled_by_default(conn: sqlite3.Connection) -> None:
+    assert settings.reminders_enabled(conn)
+    settings.save_preferences(
+        conn, font_size=None, upcoming_threshold_days=7, reminders_enabled=False
+    )
+    assert not settings.reminders_enabled(conn)

@@ -90,6 +90,11 @@ module = ["yomil.app.*"]
 disallow_subclassing_any = false
 disallow_untyped_calls = false
 
+[[tool.mypy.overrides]]
+# Windows-only code behind `sys.platform` checks is "unreachable" on every other OS.
+module = ["yomil.autostart", "yomil.app.notify"]
+warn_unreachable = false
+
 # ------------------------------------------------------------------- pytest
 [tool.pytest.ini_options]
 minversion = "8.0"

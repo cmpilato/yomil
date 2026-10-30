@@ -1,4 +1,4 @@
-"""Preferences: the text size and the "due soon" window, with a live preview.
+"""Preferences: text size, the "due soon" window, and reminders, with a live preview.
 
 The preview is a real bill list (with made-up bills from ``core.preferences``) and a
 sample field, so what the user sees is exactly what they'll get. Nothing changes until Save;
@@ -7,15 +7,18 @@ then the main window applies it right away and every dialog opened after uses it
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 import wx
 
+from yomil import autostart
 from yomil.app.bill_list import BillListCtrl
 from yomil.app.fields import grow_to_fit
 from yomil.app.fonts import default_font_size, inherit_font, set_font_everywhere, ui_font
 from yomil.core.errors import YomilError
 from yomil.core.preferences import sample_rows, threshold_explanation
+from yomil.core.reminders import quiet_hours_text
 from yomil.services import settings
 
 if TYPE_CHECKING:
@@ -23,6 +26,8 @@ if TYPE_CHECKING:
     from datetime import date
 
     from yomil.core.formatting import MoneyFormat
+
+log = logging.getLogger(__name__)
 
 _PREVIEW_LINES = 5  # header plus the sample rows, with a little room
 
@@ -96,6 +101,30 @@ class PreferencesDialog(wx.Dialog):
         soon_box.Add(row, 0, wx.ALL, gap)
         soon_box.Add(self._explanation, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, gap)
 
+        # Reminders
+        remind_box = wx.StaticBoxSizer(wx.VERTICAL, self, "Reminders")
+        box = remind_box.GetStaticBox()
+        self._reminders = wx.CheckBox(
+            box, label="Show &reminders when bills are coming up or overdue"
+        )
+        self._reminders.SetValue(settings.reminders_enabled(conn))
+        remind_box.Add(self._reminders, 0, wx.ALL, gap)
+        remind_box.Add(
+            wx.StaticText(
+                box,
+                label="Each bill's reminder days are set in Manage Bills.\n" + quiet_hours_text(),
+            ),
+            0,
+            wx.LEFT | wx.RIGHT | wx.BOTTOM,
+            gap,
+        )
+        self._autostart: wx.CheckBox | None = None
+        if autostart.supported():
+            self._autostart = wx.CheckBox(box, label="Start YOMIL when I sign &in to Windows")
+            self._autostart.SetValue(autostart.is_enabled())
+            remind_box.Add(self._autostart, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, gap)
+        self._initial_switches = self._switches()
+
         # Preview
         preview_box = wx.StaticBoxSizer(wx.VERTICAL, self, "Preview")
         box = preview_box.GetStaticBox()
@@ -119,6 +148,7 @@ class PreferencesDialog(wx.Dialog):
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(text_box, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 2 * gap)
         sizer.Add(soon_box, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 2 * gap)
+        sizer.Add(remind_box, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 2 * gap)
         sizer.Add(preview_box, 1, wx.EXPAND | wx.ALL, 2 * gap)
         sizer.Add(buttons, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 2 * gap)
         self.SetSizer(sizer)
@@ -138,6 +168,14 @@ class PreferencesDialog(wx.Dialog):
 
     def _values(self) -> tuple[int, int]:
         return self._size.GetValue(), self._threshold.GetValue()
+
+    def _switches(self) -> tuple[bool, bool | None]:
+        """Show reminders; start at sign-in (``None`` where that isn't offered)."""
+        start = None if self._autostart is None else bool(self._autostart.GetValue())
+        return bool(self._reminders.GetValue()), start
+
+    def _changed(self) -> bool:
+        return (self._values(), self._switches()) != (self._initial, self._initial_switches)
 
     def _update_preview(self) -> None:
         values = self._values()
@@ -174,20 +212,34 @@ class PreferencesDialog(wx.Dialog):
 
     def _save(self) -> bool:
         points, threshold = self._values()
+        show_reminders, start_at_sign_in = self._switches()
         try:
             settings.save_preferences(
                 self._conn,
                 # The chosen size, or None to follow Windows if that's the size picked.
                 font_size=None if points == self._default_size else points,
                 upcoming_threshold_days=threshold,
+                reminders_enabled=show_reminders,
             )
         except YomilError as exc:
             wx.MessageBox(str(exc), "YOMIL", wx.OK | wx.ICON_WARNING, self)
             return False
+        if start_at_sign_in is not None and start_at_sign_in != self._initial_switches[1]:
+            try:
+                autostart.set_enabled(start_at_sign_in)
+            except OSError:
+                log.exception("Could not change the run-at-sign-in setting")
+                wx.MessageBox(
+                    "Your other preferences were saved, but YOMIL couldn't change whether "
+                    "it starts when you sign in.",
+                    "YOMIL",
+                    wx.OK | wx.ICON_WARNING,
+                    self,
+                )
         return True
 
     def _on_cancel(self, _event: wx.CommandEvent) -> None:
-        if self._values() != self._initial:
+        if self._changed():
             dlg = wx.MessageDialog(
                 self,
                 "Save your changes to the preferences?",

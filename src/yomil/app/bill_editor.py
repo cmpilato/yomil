@@ -25,6 +25,7 @@ from yomil.core.bill_form import (
 )
 from yomil.core.errors import YomilError
 from yomil.core.models import AmountKind, WeekendPolicy
+from yomil.core.reminders import LEAD_DAY_CHOICES, merge_lead_days
 from yomil.core.schedule import Repeat, Schedule
 from yomil.services import bills
 
@@ -90,6 +91,7 @@ class BillEditor(wx.Dialog):
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self._build_basics(form, categories), 0, wx.EXPAND | wx.ALL, 2 * gap)
         sizer.Add(self._build_schedule(form), 0, wx.EXPAND | wx.LEFT | wx.RIGHT, 2 * gap)
+        sizer.Add(self._build_reminders(form), 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 2 * gap)
         sizer.Add(self._build_amount(form), 0, wx.EXPAND | wx.ALL, 2 * gap)
         sizer.Add(self._build_other(form), 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 2 * gap)
         self._form_msg = wx.StaticText(self)
@@ -188,6 +190,25 @@ class BillEditor(wx.Dialog):
         self._weekend.Bind(wx.EVT_CHOICE, lambda _evt: self._update())
         return self._finish_section(box, grid)
 
+    def _build_reminders(self, form: BillFormInput) -> wx.Sizer:
+        box, p = self._section("Reminders")
+        self._lead_days_original = form.lead_days
+        row = wx.WrapSizer(wx.HORIZONTAL)
+        row.Add(
+            wx.StaticText(p, label="Remin&d me:"),
+            0,
+            wx.ALIGN_CENTER_VERTICAL | wx.RIGHT,
+            self.FromDIP(8),
+        )
+        self._lead_days: list[tuple[int, wx.CheckBox]] = []
+        for days, label in LEAD_DAY_CHOICES:
+            check = wx.CheckBox(p, label=label)
+            check.SetValue(days in form.lead_days)
+            row.Add(check, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, self.FromDIP(12))
+            self._lead_days.append((days, check))
+        box.Add(row, 0, wx.EXPAND | wx.ALL, self.FromDIP(8))
+        return box
+
     def _build_amount(self, form: BillFormInput) -> wx.Sizer:
         box, p = self._section("Amount")
         grid = self._grid()
@@ -256,6 +277,10 @@ class BillEditor(wx.Dialog):
             category=self._category.GetValue(),
             url=self._url.GetValue(),
             notes=self._notes.GetValue(),
+            lead_days=merge_lead_days(
+                (days for days, check in self._lead_days if check.GetValue()),
+                self._lead_days_original,
+            ),
         )
 
     def _check(self) -> BillCheck:

@@ -163,3 +163,12 @@ def test_clamped_month_end_bill_round_trips() -> None:
     form = form_from_series(base)
     assert form.schedule == Schedule(Repeat.MONTHLY, 1, 31)
     assert check_bill(form, base=base).series == base
+
+
+def test_reminder_days_come_from_the_form() -> None:
+    base = make_series(id=7)
+    form = replace(form_from_series(base), lead_days=(14, 0))
+    check = check_bill(form, base=base)
+    assert check.series is not None
+    assert check.series.lead_days == (14, 0)
+    assert new_bill_form(TODAY).lead_days == (7, 3, 0)

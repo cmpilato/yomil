@@ -4,7 +4,9 @@ With a tray icon, closing the window hides it and the tray menu's Quit really ex
 Without one (``--no-tray`` or no tray available), closing the window quits the app.
 
 The list is rebuilt from ``services.payments`` whenever the date may have changed: when
-the window is shown or activated, at local midnight, and after every change.
+the window is shown or activated, at local midnight, and after every change. Each
+refresh also updates the tray icon and shows any reminders that are due; a timer checks
+again every few minutes, so reminders held back overnight appear in the morning.
 """
 
 from __future__ import annotations
@@ -20,13 +22,16 @@ from yomil.app.bill_list import BillListCtrl
 from yomil.app.event_editor import EventEditor, Outcome
 from yomil.app.fonts import set_font_everywhere, ui_font
 from yomil.app.manage_bills import ManageBillsDialog
+from yomil.app.notify import Notifier
 from yomil.app.payment_history import PaymentHistoryDialog
 from yomil.app.preferences import PreferencesDialog
 from yomil.app.tray import TrayIcon, make_icon
 from yomil.core.errors import YomilError
 from yomil.core.formatting import format_date, format_money, quick_pay_amount, summary_text
 from yomil.core.models import AmountKind
-from yomil.services import bills, export, payments, settings
+from yomil.core.reminders import in_quiet_hours, notices
+from yomil.core.urgency import Urgency
+from yomil.services import bills, export, payments, reminders, settings
 
 if TYPE_CHECKING:
     import sqlite3
@@ -38,6 +43,7 @@ log = logging.getLogger(__name__)
 
 _PAGE_LIST, _PAGE_EMPTY = 0, 1
 _MIDNIGHT_SLACK = timedelta(seconds=5)  # fire just after midnight, never just before
+_REMINDER_CHECK_MS = 15 * 60 * 1000
 
 _ID_EXPORT = wx.NewIdRef()
 _ID_MANAGE_BILLS = wx.NewIdRef()
@@ -59,6 +65,7 @@ class MainFrame(wx.Frame):
         self._font_size_applied: tuple[int | None] | None = None
         self.SetIcon(make_icon())
         self._tray: TrayIcon | None = TrayIcon(self) if use_tray else None
+        self._notifier = Notifier(self, self._tray)
 
         self._build_menus()
         self._build_body()
@@ -66,11 +73,14 @@ class MainFrame(wx.Frame):
 
         self._midnight_timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self._on_midnight, self._midnight_timer)
+        self._reminder_timer = wx.Timer(self)
+        self.Bind(wx.EVT_TIMER, lambda _evt: self._show_reminders(), self._reminder_timer)
         self.Bind(wx.EVT_CLOSE, self._on_close)
         self.Bind(wx.EVT_ACTIVATE, self._on_activate)
 
         self.refresh()
         self._arm_midnight_timer()
+        self._reminder_timer.Start(_REMINDER_CHECK_MS)
 
     # ------------------------------------------------------------------ layout
 
@@ -160,6 +170,9 @@ class MainFrame(wx.Frame):
         self._list.set_rows(rows, self._today)
         self._grow_to_fit_list()
         self.SetStatusText(summary_text(rows))
+        if self._tray is not None:
+            overdue = sum(1 for r in rows if r.urgency is Urgency.OVERDUE)
+            self._tray.update(summary_text(rows), overdue)
         if rows:
             self._book.SetSelection(_PAGE_LIST)
             if select_index is None:
@@ -174,6 +187,20 @@ class MainFrame(wx.Frame):
             self._book.SetSelection(_PAGE_EMPTY)
             self._book.GetPage(_PAGE_EMPTY).Layout()
         self._update_buttons()
+        self._show_reminders()
+
+    def _show_reminders(self) -> None:
+        """Show any reminders that are due (each only once; none overnight)."""
+        now = datetime.now()  # noqa: DTZ005  (local wall clock is the point)
+        try:
+            if not settings.reminders_enabled(self._conn) or in_quiet_hours(now.time()):
+                return
+            due = reminders.due(self._conn, now.date(), self._money_fmt)
+            for notice in notices(due):
+                if self._notifier.show(notice, self.show_bill):
+                    reminders.mark_shown(self._conn, notice.reminders)
+        except Exception:
+            log.exception("Could not show reminders")  # never worth interrupting the user for
 
     def _apply_font_size(self, points: int | None) -> None:
         """Re-font the whole window if the text size setting changed (it starts out unset)."""
@@ -334,6 +361,7 @@ class MainFrame(wx.Frame):
     def _on_midnight(self, _event: wx.TimerEvent) -> None:
         self.refresh()
         self._arm_midnight_timer()
+        self._reminder_timer.Start(_REMINDER_CHECK_MS)
 
     # ---------------------------------------------------------- show and close
 
@@ -344,8 +372,17 @@ class MainFrame(wx.Frame):
         self.Raise()
         self._list.SetFocus()
 
+    def show_bill(self, series_id: int | None) -> None:
+        """Bring the window up with that bill selected (from a clicked reminder)."""
+        self.show_window()
+        for i, row in enumerate(self._list.rows):
+            if row.series.id == series_id:
+                self._list.select(i)
+                break
+
     def quit(self) -> None:
         self._midnight_timer.Stop()
+        self._reminder_timer.Stop()
         self._destroy_tray()
         self.Destroy()
 
@@ -360,5 +397,6 @@ class MainFrame(wx.Frame):
             event.Veto()
         else:
             self._midnight_timer.Stop()
+            self._reminder_timer.Stop()
             self._destroy_tray()
             event.Skip()  # let the window (and, being the last one, the app) close
