@@ -4,14 +4,13 @@
 
 ```
 src/yomil/
+  app/       wxPython shell: tray icon, main window, entry point
   core/      pure domain logic: models, recurrence, urgency, materialization planning,
              main-list building, validation, user-facing formatting. No wx, no I/O.
+  devtools/  developer-only helpers; never imported by the app 
   storage/   SQLite: connection + transactions, versioned SQL migrations
              (PRAGMA user_version), and repository functions (one module per table)
   services/  use cases the UI calls; each write is one transaction plus event_log entries
-  app/       wxPython shell: tray icon, main window, entry point
-  devtools/  developer-only helpers (seed script); never imported by the app
-  paths.py, logging_setup.py
 tests/       mirrors src/; everything but app/ runs on any OS, no wxPython needed
 ```
 
