@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 import wx
 
 from yomil.app.bill_editor import BillEditor
+from yomil.app.lists import apply_list_font, fit_columns
 from yomil.core.errors import YomilError
 from yomil.core.formatting import format_amount, format_date
 from yomil.core.schedule import describe, parse_schedule
@@ -50,11 +51,7 @@ class ManageBillsDialog(wx.Dialog):
         self._list = wx.ListCtrl(self, style=wx.LC_REPORT | wx.LC_SINGLE_SEL | wx.LC_HRULES)
         for i, title in enumerate(COLUMNS):
             self._list.InsertColumn(i, title)
-        size = settings.list_font_size(conn)
-        if size is not None:
-            font = self._list.GetFont()
-            font.SetPointSize(size)
-            self._list.SetFont(font)
+        apply_list_font(self._list, settings.list_font_size(conn))
 
         self._add = wx.Button(self, label="&Add…")
         self._edit = wx.Button(self, label="&Edit…")
@@ -115,13 +112,7 @@ class ManageBillsDialog(wx.Dialog):
             if not s.active:
                 self._list.SetItemTextColour(i, grey)
 
-        for col in range(len(COLUMNS)):
-            # The wider of the header and the widest cell.
-            self._list.SetColumnWidth(col, wx.LIST_AUTOSIZE)
-            cells_width = self._list.GetColumnWidth(col)
-            self._list.SetColumnWidth(col, wx.LIST_AUTOSIZE_USEHEADER)
-            if self._list.GetColumnWidth(col) < cells_width:
-                self._list.SetColumnWidth(col, cells_width)
+        fit_columns(self._list)
 
         index = next((i for i, s in enumerate(self._bills) if s.id == select_id), 0)
         if self._bills:

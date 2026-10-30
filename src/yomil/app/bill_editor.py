@@ -13,6 +13,7 @@ import wx
 import wx.adv
 
 from yomil.app.dates import from_wx, to_wx
+from yomil.app.fields import grow_to_fit, show_message
 from yomil.core.bill_form import (
     BillFormInput,
     Field,
@@ -32,7 +33,6 @@ if TYPE_CHECKING:
 
     from yomil.core.bill_form import BillCheck
     from yomil.core.formatting import MoneyFormat
-    from yomil.core.forms import FieldMessage
     from yomil.core.models import Series
 
 _REPEATS = [
@@ -52,8 +52,6 @@ _AMOUNT_KINDS = [
     (AmountKind.ESTIMATED, "About the same each time"),
     (AmountKind.VARIABLE, "Different every time"),
 ]
-_ERROR_COLOUR_LIGHT = "#B3261E"
-_ERROR_COLOUR_DARK = "#FF8A80"
 
 
 class BillEditor(wx.Dialog):
@@ -78,8 +76,6 @@ class BillEditor(wx.Dialog):
         others = [s for s in bills.list_all(conn) if base is None or s.id != base.id]
         self._other_payees = [s.payee for s in others]
         categories = sorted({s.category for s in bills.list_all(conn) if s.category})
-        dark = wx.SystemSettings.GetAppearance().IsDark()
-        self._error_colour = wx.Colour(_ERROR_COLOUR_DARK if dark else _ERROR_COLOUR_LIGHT)
         self._touched: set[Field] = set()
         self._show_all = False
 
@@ -280,7 +276,7 @@ class BillEditor(wx.Dialog):
             (Field.FORM, self._form_msg),
         ):
             shown = self._show_all or field in self._touched
-            self._show_message(label, check.messages.get(field) if shown else None)
+            show_message(label, check.messages.get(field) if shown else None)
 
         repeat, _label, unit = self._repeats[self._repeat.GetSelection()]
         repeating = repeat not in (Repeat.ONCE, Repeat.CUSTOM)
@@ -301,26 +297,7 @@ class BillEditor(wx.Dialog):
         self._summary.SetLabel(
             "\n".join(schedule_summary(form, base=self._base, today=self._today))
         )
-        self._grow_to_fit()
-
-    def _show_message(self, label: wx.StaticText, message: FieldMessage | None) -> None:
-        if message is None:
-            label.SetLabel("")
-        elif message.is_error:
-            label.SetLabel(f"⚠ {message.text}")
-            label.SetForegroundColour(self._error_colour)
-        else:
-            label.SetLabel(message.text)
-            label.SetForegroundColour(wx.NullColour)
-
-    def _grow_to_fit(self) -> None:
-        """Make room for longer text (never shrink, so the layout doesn't jump)."""
-        self.Layout()
-        needed = self.GetSizer().ComputeFittingWindowSize(self)
-        size = self.GetSize()
-        if needed.width > size.width or needed.height > size.height:
-            self.SetSize(max(needed.width, size.width), max(needed.height, size.height))
-            self.Layout()
+        grow_to_fit(self)
 
     # ---------------------------------------------------------------- actions
 

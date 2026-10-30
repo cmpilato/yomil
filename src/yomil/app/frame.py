@@ -18,6 +18,7 @@ import wx
 from yomil.app.bill_list import BillListCtrl
 from yomil.app.event_editor import EventEditor, Outcome
 from yomil.app.manage_bills import ManageBillsDialog
+from yomil.app.payment_history import PaymentHistoryDialog
 from yomil.app.tray import TrayIcon, make_icon
 from yomil.core.errors import YomilError
 from yomil.core.formatting import format_date, format_money, quick_pay_amount, summary_text
@@ -88,12 +89,13 @@ class MainFrame(wx.Frame):
         menu_bar.Append(tools_menu, "&Tools")
         self.SetMenuBar(menu_bar)
 
-        # Not built yet (Phases 5-7).
-        for item_id in (_ID_EXPORT, _ID_HISTORY, wx.ID_PREFERENCES):
+        # Not built yet (Phases 6-7).
+        for item_id in (_ID_EXPORT, wx.ID_PREFERENCES):
             menu_bar.Enable(item_id, False)
 
         self.Bind(wx.EVT_MENU, lambda _evt: self.quit(), id=wx.ID_EXIT)
         self.Bind(wx.EVT_MENU, self._on_manage_bills, id=_ID_MANAGE_BILLS)
+        self.Bind(wx.EVT_MENU, self._on_history, id=_ID_HISTORY)
 
     def _build_body(self) -> None:
         panel = self._panel = wx.Panel(self)
@@ -223,6 +225,12 @@ class MainFrame(wx.Frame):
         dlg.ShowModal()
         dlg.Destroy()
         self.refresh()
+
+    def _on_history(self, _event: wx.Event) -> None:
+        dlg = PaymentHistoryDialog(self, self._conn, money_fmt=self._money_fmt, today=_today())
+        dlg.ShowModal()
+        dlg.Destroy()
+        self.refresh()  # a payment marked unpaid is back on the list
 
     def _on_mark_paid(self, _event: wx.Event) -> None:
         row = self._list.selected_row()

@@ -237,14 +237,30 @@ Decisions made while implementing:
 * Controls inside a `StaticBoxSizer` are children of its `StaticBox` (wx 3.x rule).
 * The main window's empty state now has a **Manage Bills…** button.
 
-### Phase 5: Payment History and Event Viewer
+### Phase 5: Payment History and Event Viewer — built; Windows manual test pending
 
 * History list: date, bill (snapshotted name), amount, Paid/Skipped, note. Most recent
   first. Activation opens the Event Viewer.
-* Event Viewer: read-only details plus that payment's change history from `event_log`.
-  Buttons: **Edit…** (paid date, amount, note), **Un-reconcile** (confirms, returns the
-  payment to the main list), **Close**.
-* _(open: filter by bill or year? Search notes?)_
+* Event Viewer: read-only details of one payment. Buttons: **Edit…** (paid date, amount,
+  note), **Un-reconcile** (confirms, returns the payment to the main list), **Close**.
+
+Decisions made while implementing:
+* Payment History is the "check register": the one place to browse past payments. No
+  filtering or search yet; add it if she asks.
+* **The Event Viewer does not show `event_log`.** The audit trail keeps recording every
+  change, but it's for debugging and deep auditing, not for her. (Export could expose it
+  later.)
+* Plain words instead of "un-reconcile": **Mark Unpaid…** for paid payments, **Undo
+  Skip…** for skipped ones (which have no Edit…). The confirmation warns when the bill
+  is retired, since the payment then won't reappear on the main list.
+* Edit… opens a separate small dialog (`app/payment_editor.py`), reusing the Event
+  Editor's field checks (`core/payment_form.py`), so looking can't change anything by
+  accident. In the viewer, Close is the default and has the focus.
+* Skipped rows are greyed *and* say "Skipped" (amount "—"). They're listed under their
+  due date; paid ones under their paid date. The viewer shows "Expected amount" only
+  when it differs from what was paid, and "Bill now called" if the bill was renamed.
+* Display rules are pure, in `core/history.py`. The editors' field-message helpers moved
+  to `app/fields.py`; the report lists' font and column sizing to `app/lists.py`.
 
 ### Phase 6: Preferences
 
@@ -303,7 +319,8 @@ Milestone: **first deployment to her PC** (Phases 1–8).
    the common case?~~ Yes, with a confirm (Phase 2).
 5. **Font scope:** lists only (as sketched) or the whole UI?
 6. **Currency/locale:** USD only?
-7. **History scope:** include skipped payments (proposed yes)? Any filtering?
+7. ~~**History scope:** include skipped payments (proposed yes)? Any filtering?~~ Skipped
+   payments included (greyed, labelled); no filtering yet (Phase 5).
 8. **Series edits:** is "regenerate future, pending, not-overridden payments" the right rule?
 9. **Overdue display:** with one row per bill, is "(+N more overdue)" clear enough, or
    should multiple overdue payments for one bill get separate rows?

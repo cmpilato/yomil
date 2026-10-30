@@ -14,6 +14,7 @@ import wx
 import wx.adv
 
 from yomil.app.dates import from_wx, to_wx
+from yomil.app.fields import grow_to_fit, show_message
 from yomil.core.errors import ValidationError, YomilError
 from yomil.core.formatting import (
     format_date,
@@ -30,13 +31,9 @@ if TYPE_CHECKING:
     from datetime import date
 
     from yomil.core.formatting import MoneyFormat
-    from yomil.core.forms import FieldMessage
     from yomil.core.main_list import BillRow
 
 log = logging.getLogger(__name__)
-
-_ERROR_COLOUR_LIGHT = "#B3261E"
-_ERROR_COLOUR_DARK = "#FF8A80"
 
 
 class Outcome(enum.Enum):
@@ -69,12 +66,6 @@ class EventEditor(wx.Dialog):
         self._occ_id = row.occurrence.id
         self._money_fmt = money_fmt
         self._today = today
-        error_hex = (
-            _ERROR_COLOUR_DARK
-            if wx.SystemSettings.GetAppearance().IsDark()
-            else _ERROR_COLOUR_LIGHT
-        )
-        self._error_colour = wx.Colour(error_hex)
 
         gap = self.FromDIP(8)
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -206,28 +197,10 @@ class EventEditor(wx.Dialog):
         check = check_payment(
             self._amount.GetValue(), from_wx(self._paid.GetValue()), self._today, self._money_fmt
         )
-        self._show_message(self._amount_msg, check.amount_message)
-        self._show_message(self._paid_msg, check.paid_date_message)
+        show_message(self._amount_msg, check.amount_message)
+        show_message(self._paid_msg, check.paid_date_message)
         self._pay_button.Enable(check.can_mark_paid)
-        self._grow_to_fit()
-
-    def _grow_to_fit(self) -> None:
-        """Make room for a longer message (never shrink, so the layout doesn't jump)."""
-        needed = self.GetSizer().ComputeFittingWindowSize(self)
-        size = self.GetSize()
-        if needed.width > size.width or needed.height > size.height:
-            self.SetSize(max(needed.width, size.width), max(needed.height, size.height))
-        self.Layout()
-
-    def _show_message(self, label: wx.StaticText, message: FieldMessage | None) -> None:
-        if message is None:
-            label.SetLabel("")
-        elif message.is_error:
-            label.SetLabel(f"⚠ {message.text}")
-            label.SetForegroundColour(self._error_colour)
-        else:
-            label.SetLabel(message.text)
-            label.SetForegroundColour(wx.NullColour)
+        grow_to_fit(self)
 
     # ---------------------------------------------------------------- actions
 
