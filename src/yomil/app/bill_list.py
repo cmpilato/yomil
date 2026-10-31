@@ -102,6 +102,17 @@ class BillListCtrl(wx.ListCtrl):
         self.Select(index)
         self.Focus(index)  # also scrolls it into view
 
+    def focus(self, index: int) -> None:
+        """Focus row ``index`` (clamped) without selecting it, so it keeps its urgency colors.
+
+        A selected row is drawn in the theme's highlight color, which can look like an
+        urgency color (Ubuntu's default orange looks overdue).
+        """
+        if not self._rows:
+            return
+        index = max(0, min(index, len(self._rows) - 1))
+        self.Focus(index)
+
     # ------------------------------------------------------- virtual callbacks
 
     def OnGetItemText(self, item: int, column: int) -> str:  # noqa: N802  (wx naming)

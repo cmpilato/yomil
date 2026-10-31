@@ -189,9 +189,12 @@ class MainFrame(wx.Frame):
             self._tray.update(summary_text(rows), overdue)
         if rows:
             self._book.SetSelection(_PAGE_LIST)
-            if select_index is None:
+            if select_index is None and previous is not None:
                 select_index = self._index_of(rows, previous)
-            self._list.select(select_index)
+            if select_index is None:
+                self._list.focus(0)  # selecting is left to the user
+            else:
+                self._list.select(select_index)
         else:
             self._empty_text.SetLabel(
                 "Nothing to pay right now."
@@ -240,11 +243,10 @@ class MainFrame(wx.Frame):
             self.Move(max(screen.left, screen.right - width), self.GetPosition().y)
 
     @staticmethod
-    def _index_of(rows: list[BillRow], previous: BillRow | None) -> int:
-        if previous is not None:
-            for i, row in enumerate(rows):
-                if row.series.id == previous.series.id:
-                    return i
+    def _index_of(rows: list[BillRow], previous: BillRow) -> int:
+        for i, row in enumerate(rows):
+            if row.series.id == previous.series.id:
+                return i
         return 0
 
     def _update_buttons(self) -> None:
@@ -260,7 +262,9 @@ class MainFrame(wx.Frame):
 
     # ---------------------------------------------------------------- commands
 
-    def _on_open(self, _event: wx.Event) -> None:
+    def _on_open(self, event: wx.Event) -> None:
+        if isinstance(event, wx.ListEvent):  # Enter works on a focused, unselected row too
+            self._list.select(event.GetIndex())
         row = self._list.selected_row()
         if row is None:
             return
