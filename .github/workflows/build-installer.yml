@@ -26,8 +26,8 @@ jobs:
       VERSION: ${{ inputs.version }}
       FILE_VERSION: ${{ inputs.file_version }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.4.0
         with:
           python-version: "3.13"
 
@@ -60,7 +60,7 @@ jobs:
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:VERSION" "/DFileVersion=$env:FILE_VERSION" packaging\yomil.iss
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: YOMIL-Setup
           path: dist/YOMIL-Setup-*.exe
