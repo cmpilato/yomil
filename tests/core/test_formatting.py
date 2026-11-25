@@ -15,7 +15,6 @@ from yomil.core.formatting import (
     format_money_for_entry,
     money_format_from_localeconv,
     parse_money,
-    quick_pay_amount,
     status_text,
     summary_text,
 )
@@ -113,11 +112,6 @@ def test_format_expected_amount(kind: AmountKind, expected: int | None, text: st
 )
 def test_status_text(offset: int, more: int, text: str) -> None:
     assert status_text(make_row(offset, more_overdue=more), TODAY) == text
-
-
-def test_quick_pay_amount() -> None:
-    assert quick_pay_amount(make_row(expected=8_917)) == 8_917
-    assert quick_pay_amount(make_row(expected=None, kind=AmountKind.VARIABLE)) is None
 
 
 @pytest.mark.parametrize(

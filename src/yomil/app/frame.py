@@ -28,9 +28,7 @@ from yomil.app.notify import Notifier
 from yomil.app.payment_history import PaymentHistoryDialog
 from yomil.app.preferences import PreferencesDialog
 from yomil.app.tray import TrayIcon, app_icons
-from yomil.core.errors import YomilError
-from yomil.core.formatting import format_date, format_money, quick_pay_amount, summary_text
-from yomil.core.models import AmountKind
+from yomil.core.formatting import summary_text
 from yomil.core.reminders import in_quiet_hours, notices
 from yomil.core.urgency import Urgency
 from yomil.paths import log_dir
@@ -146,14 +144,11 @@ class MainFrame(wx.Frame):
         self._book.AddPage(empty, "empty")
 
         self._open_button = wx.Button(panel, label="&Open…")
-        self._pay_button = wx.Button(panel, label="Mark &Paid")
         self._open_button.Bind(wx.EVT_BUTTON, self._on_open)
-        self._pay_button.Bind(wx.EVT_BUTTON, self._on_mark_paid)
 
         gap = self.FromDIP(8)
         buttons = wx.BoxSizer(wx.HORIZONTAL)
-        buttons.Add(self._open_button, 0, wx.RIGHT, gap)
-        buttons.Add(self._pay_button)
+        buttons.Add(self._open_button)
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self._book, 1, wx.EXPAND | wx.ALL, gap)
@@ -252,7 +247,6 @@ class MainFrame(wx.Frame):
     def _update_buttons(self) -> None:
         row = self._list.selected_row()
         self._open_button.Enable(row is not None)
-        self._pay_button.Enable(row is not None and quick_pay_amount(row) is not None)
 
     def _arm_midnight_timer(self) -> None:
         now = datetime.now()  # noqa: DTZ005  (local wall clock is the point)
@@ -336,42 +330,6 @@ class MainFrame(wx.Frame):
         lines.append(f"Log files: {log_dir()}")
         info.SetDescription("\n".join(lines))
         wx.adv.AboutBox(info, self)
-
-    def _on_mark_paid(self, _event: wx.Event) -> None:
-        row = self._list.selected_row()
-        amount = None if row is None else quick_pay_amount(row)
-        if row is None or amount is None:
-            return
-        assert row.occurrence.id is not None
-        today = _today()
-        message = (
-            f"Mark {row.series.payee} as paid?\n\n"
-            f"Due:\t{format_date(row.occurrence.due_date)}\n"
-            f"Paid:\t{format_date(today)} (today)\n"
-            f"Amount:\t{format_money(amount, self._money_fmt)}"
-        )
-        if row.series.amount_kind is not AmountKind.FIXED:
-            message += "\n\nThat is the expected amount. To enter a different one, use Open…"
-        dlg = wx.MessageDialog(self, message, "Mark Paid", wx.YES_NO | wx.ICON_QUESTION)
-        dlg.SetYesNoLabels("&Mark Paid", "&Cancel")
-        confirmed = dlg.ShowModal() == wx.ID_YES
-        dlg.Destroy()
-        if not confirmed:
-            return
-
-        index = self._list.selected_index()
-        try:
-            payments.reconcile(
-                self._conn,
-                row.occurrence.id,
-                paid_date=today,
-                actual_amount_cents=amount,
-                note=row.occurrence.note,
-                today=today,
-            )
-        except YomilError as exc:
-            self._show_error(str(exc))
-        self.refresh(select_index=index)
 
     def _show_error(self, message: str) -> None:
         wx.MessageBox(message, "YOMIL", wx.OK | wx.ICON_WARNING, self)

@@ -140,11 +140,6 @@ def status_text(row: BillRow, today: date) -> str:
     return f"In {_days(days_left)}"
 
 
-def quick_pay_amount(row: BillRow) -> int | None:
-    """What a one-click Mark Paid would record, or ``None`` if the bill has no amount yet."""
-    return row.occurrence.expected_amount_cents
-
-
 def summary_text(rows: Iterable[BillRow]) -> str:
     """One line for the status bar: ``"2 bills overdue, 1 due soon"``."""
     counts = Counter(r.urgency for r in rows)

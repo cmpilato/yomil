@@ -1,4 +1,4 @@
-"""Event Editor: work on one pending payment (save, mark paid, or skip).
+"""Event Editor: work on one pending payment (mark paid, skip, or edit due date and note).
 
 All field rules live in ``core.payment_form``; this dialog shows its messages next to the
 fields while the user types, so nothing pops up an error box for a typo.
@@ -167,19 +167,17 @@ class EventEditor(wx.Dialog):
 
     def _build_buttons(self) -> wx.Sizer:
         self._pay_button = wx.Button(self, label="&Mark Paid")
-        save = wx.Button(self, wx.ID_SAVE, label="&Save")
         skip = wx.Button(self, label="S&kip…")
         close = wx.Button(self, wx.ID_CANCEL, label="&Close")  # also Escape and the X
         self._pay_button.SetDefault()  # Enter in the amount field pays
 
         self._pay_button.Bind(wx.EVT_BUTTON, self._on_mark_paid)
-        save.Bind(wx.EVT_BUTTON, self._on_save)
         skip.Bind(wx.EVT_BUTTON, self._on_skip)
         close.Bind(wx.EVT_BUTTON, self._on_close)
 
         gap = self.FromDIP(8)
         sizer = wx.BoxSizer(wx.HORIZONTAL)
-        for button in (self._pay_button, save, skip):
+        for button in (self._pay_button, skip):
             sizer.Add(button, 0, wx.RIGHT, gap)
         sizer.AddStretchSpacer()
         sizer.Add(close)
@@ -205,10 +203,6 @@ class EventEditor(wx.Dialog):
         grow_to_fit(self)
 
     # ---------------------------------------------------------------- actions
-
-    def _on_save(self, _event: wx.CommandEvent) -> None:
-        if self._save():
-            self.EndModal(wx.ID_OK)
 
     def _save(self) -> bool:
         due, note, _paid, _amount = self._current_values()
