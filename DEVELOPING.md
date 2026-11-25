@@ -77,16 +77,33 @@ whatever `--db` names.
 
 ## Packaging (Windows installer)
 
-* **CI:** every push to `main` (and `v*` tags, or *Actions › Installer › Run workflow*)
-  builds `YOMIL-Setup-<version>.exe` on `windows-latest` and attaches it to the run as
-  the `YOMIL-Setup` artifact.
+* **Dev builds:** every push to `main` (or *Actions › Installer › Run workflow*, from any
+  branch) builds `YOMIL-Setup-<version>.exe` on `windows-latest` and attaches it to the
+  run as the `YOMIL-Setup` artifact.
+* **Releases:** *Actions › Release › Run workflow* on `main`, choosing patch, minor or
+  major. It runs the checks and tests, builds the installer, tags the commit `vX.Y.Z`, and
+  creates a **draft** GitHub Release with the installer and generated notes; review it and
+  click *Publish*. If you discard a draft, delete its tag too, or the next release skips
+  that number. Both workflows share the build steps in `build-installer.yml`.
 * **Locally on Windows** (Git Bash, with Inno Setup 6 installed): `make installer`.
   `make freeze` alone builds the PyInstaller bundle (works on Linux too, for checking the
   spec) and runs `yomil --self-test` on it, which migrates an in-memory database and checks
   the bundled files without opening a window.
-* The version comes from `pyproject.toml`; bump it there for each release. The
-  installer's `AppId` in `packaging/yomil.iss` must never change: it's how upgrades find
-  the installed copy.
+* **Versions** come from the `vX.Y.Z` tags, never from a commit: `pyproject.toml` holds
+  a `0.0.0` placeholder, and CI stamps the real version in (`uv version --frozen`) before
+  building. `src/yomil/devtools/versioning.py` works them out:
+
+  | Build                  | Package version          | Windows file version |
+  |------------------------|--------------------------|----------------------|
+  | Release                | `1.3.0`                  | `1.3.0.0`            |
+  | Dev build after v1.3.0 | `1.3.1.dev118+abc1234`   | `1.3.0.118`          |
+
+  118 is the Installer workflow's run number and `abc1234` the commit. Both columns sort
+  dev builds after the last release and before the next. Inno Setup needs the file
+  version separately (`/DFileVersion`) because it allows only four numbers. Local builds
+  report `0.0.0`.
+* The installer's `AppId` in `packaging/yomil.iss` must never change: it's how upgrades
+  find the installed copy.
 * Installs per user (no admin) to `%LOCALAPPDATA%\Programs\YOMIL`; data stays in
   `%LOCALAPPDATA%\yomil` and the uninstaller never touches it. Upgrades close a running
   YOMIL first.

@@ -1,49 +1,36 @@
 name: Installer
 
-# Builds the Windows installer (dist/YOMIL-Setup-<version>.exe) and uploads it as an
-# artifact. Runs on pushes to main, version tags, and on demand (Actions > Installer >
-# Run workflow).
+# Dev builds: every push to main (or Actions > Installer > Run workflow, from any branch)
+# builds the installer as version {next patch}.dev{run}+{sha}, e.g. 1.3.1.dev118+abc1234
+# after v1.3.0. Releases are made by release.yml instead.
 on:
   push:
     branches: [main]
-    tags: ["v*"]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  windows:
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: pwsh
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.versions.outputs.version }}
+      file_version: ${{ steps.versions.outputs.file_version }}
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.13"
-      - run: uv sync --extra gui --group package
-
-      - name: Freeze with PyInstaller
-        run: >
-          uv run pyinstaller --noconfirm --clean
-          --distpath dist/pyinstaller --workpath build/pyinstaller packaging/yomil.spec
-
-      - name: Self-test the frozen app
+          fetch-depth: 0 # the release tags
+      - id: versions
+        env:
+          RUN: ${{ github.run_number }}
+          SHA: ${{ github.sha }}
         run: |
-          # A windowed .exe returns immediately in PowerShell, so wait for it explicitly.
-          $p = Start-Process dist\pyinstaller\YOMIL\yomil.exe -ArgumentList "--self-test" -Wait -PassThru
-          if ($p.ExitCode -ne 0) { throw "Self-test failed with exit code $($p.ExitCode)" }
+          PYTHONPATH=src python3 -m yomil.devtools.versioning dev --run "$RUN" --sha "$SHA" | tee -a "$GITHUB_OUTPUT"
 
-      - name: Install Inno Setup
-        run: choco install innosetup --no-progress -y
-
-      - name: Build the installer
-        run: |
-          $version = uv run python -c "import yomil; print(yomil.__version__)"
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$version" packaging\yomil.iss
-          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: YOMIL-Setup
-          path: dist/YOMIL-Setup-*.exe
-          if-no-files-found: error
+  build:
+    needs: version
+    uses: ./.github/workflows/build-installer.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+      file_version: ${{ needs.version.outputs.file_version }}

@@ -1,0 +1,67 @@
+name: Build installer
+
+# Reusable: stamps the given version into the project, freezes and self-tests the app, and
+# builds dist/YOMIL-Setup-<version>.exe, uploaded as the `YOMIL-Setup` artifact.
+# Called by installer.yml (dev builds) and release.yml; the versions come from
+# src/yomil/devtools/versioning.py.
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Package version, e.g. 1.3.0 or 1.3.1.dev118+abc1234
+        required: true
+        type: string
+      file_version:
+        description: Windows file version (four numbers), e.g. 1.3.0.0
+        required: true
+        type: string
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      VERSION: ${{ inputs.version }}
+      FILE_VERSION: ${{ inputs.file_version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+
+      # --frozen everywhere: the lockfile records the placeholder version, and nothing
+      # else about it changes.
+      - name: Stamp the version
+        run: uv version --frozen $env:VERSION
+      - run: uv sync --frozen --extra gui --group package
+      - name: Check the stamped version
+        run: |
+          $actual = uv run --frozen python -c "import yomil; print(yomil.__version__)"
+          if ($actual -ne $env:VERSION) { throw "yomil.__version__ is $actual, expected $env:VERSION" }
+
+      - name: Freeze with PyInstaller
+        run: >
+          uv run --frozen pyinstaller --noconfirm --clean
+          --distpath dist/pyinstaller --workpath build/pyinstaller packaging/yomil.spec
+
+      - name: Self-test the frozen app
+        run: |
+          # A windowed .exe returns immediately in PowerShell, so wait for it explicitly.
+          $p = Start-Process dist\pyinstaller\YOMIL\yomil.exe -ArgumentList "--self-test" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Self-test failed with exit code $($p.ExitCode)" }
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build the installer
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:VERSION" "/DFileVersion=$env:FILE_VERSION" packaging\yomil.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: YOMIL-Setup
+          path: dist/YOMIL-Setup-*.exe
+          if-no-files-found: error

@@ -1,0 +1,81 @@
+name: Release
+
+# On demand only (Actions > Release > Run workflow, on main). Bumps the latest vX.Y.Z tag,
+# runs the checks and tests, builds the installer, then tags the built commit and creates
+# a *draft* GitHub Release with the installer attached. Review it and click Publish.
+# If you discard a draft, delete its tag too, or the next release skips that number.
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Which part of the version to increase
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.versions.outputs.version }}
+      file_version: ${{ steps.versions.outputs.file_version }}
+      tag: ${{ steps.versions.outputs.tag }}
+    steps:
+      - name: Releases come from main only
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Run the release workflow on main, not ${GITHUB_REF}."
+          exit 1
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the release tags
+      - id: versions
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          PYTHONPATH=src python3 -m yomil.devtools.versioning release --bump "$BUMP" | tee -a "$GITHUB_OUTPUT"
+
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --locked --group dev
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy
+      - run: uv run pytest
+
+  build:
+    needs: prepare
+    uses: ./.github/workflows/build-installer.yml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+      file_version: ${{ needs.prepare.outputs.file_version }}
+
+  publish:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ needs.prepare.outputs.tag }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+      SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: YOMIL-Setup
+          path: dist
+      # Tag now rather than on Publish, so the next release (and dev builds) count from it.
+      - name: Tag the built commit
+        run: gh api "repos/$GH_REPO/git/refs" -f "ref=refs/tags/$TAG" -f "sha=$SHA"
+      - name: Create the draft release
+        run: >
+          gh release create "$TAG" dist/YOMIL-Setup-*.exe
+          --draft --verify-tag --generate-notes --title "YOMIL $VERSION"

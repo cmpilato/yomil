@@ -1,6 +1,9 @@
 ; Inno Setup script for YOMIL (`make installer`, or CI). Needs Inno Setup 6.3+.
 ; Build the frozen app first (`make freeze`), then:
-;   iscc /DAppVersion=1.2.3 packaging\yomil.iss
+;   iscc /DAppVersion=1.2.3 /DFileVersion=1.2.3.0 packaging\yomil.iss
+; AppVersion is the package version, which may be a dev build's (1.2.4.dev118+abc1234);
+; FileVersion is the Windows file version, which must be four numbers (see
+; src/yomil/devtools/versioning.py).
 ;
 ; Per-user install: no administrator rights, installed under %LOCALAPPDATA%\Programs.
 ; The user's data lives in %LOCALAPPDATA%\yomil, which this never touches: the
@@ -8,6 +11,9 @@
 
 #ifndef AppVersion
   #define AppVersion "0.0.0"
+#endif
+#ifndef FileVersion
+  #define FileVersion "0.0.0.0"
 #endif
 
 [Setup]
@@ -17,7 +23,7 @@ AppName=YOMIL
 AppVersion={#AppVersion}
 AppVerName=YOMIL {#AppVersion}
 AppPublisher=YOMIL contributors
-VersionInfoVersion={#AppVersion}
+VersionInfoVersion={#FileVersion}
 PrivilegesRequired=lowest
 DefaultDirName={autopf}\YOMIL
 DisableDirPage=auto

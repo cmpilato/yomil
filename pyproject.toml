@@ -4,7 +4,9 @@ build-backend = "hatchling.build"
 
 [project]
 name = "yomil"
-version = "0.1.0"
+# A placeholder: CI stamps the real version into each build (`uv version`), worked out
+# from the vX.Y.Z release tags by src/yomil/devtools/versioning.py.
+version = "0.0.0"
 description = "A small Windows tray app for recurring bill reminders and manual reconciliation."
 readme = "README.md"
 requires-python = ">=3.12"
