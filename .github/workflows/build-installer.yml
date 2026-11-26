@@ -65,3 +65,7 @@ jobs:
           name: YOMIL-Setup
           path: dist/YOMIL-Setup-*.exe
           if-no-files-found: error
+
+      - name: Summarize
+        run: |
+          "Built ``YOMIL-Setup-$env:VERSION.exe`` (version ``$env:VERSION``, file version ``$env:FILE_VERSION``)." >> $env:GITHUB_STEP_SUMMARY
